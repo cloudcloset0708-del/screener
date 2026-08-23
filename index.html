@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이데아랩 종목 스크리너</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+<style>
+:root{
+  --ground:#0A0C11; --panel:rgba(255,255,255,.028); --panel-2:rgba(255,255,255,.05);
+  --edge:rgba(255,255,255,.075); --edge-2:rgba(255,255,255,.14);
+  --ink:#F0F2F7; --ink-2:#A6ADBD; --ink-3:#6A7283;
+  --accent:#8B7CFF; --accent-2:#B4A9FF; --accent-dim:rgba(139,124,255,.14);
+  --gain:#2FD08A; --loss:#F2605C; --warn:#E8B84B;
+  --r-lg:16px; --r-md:11px; --r-sm:8px;
+}
+*{box-sizing:border-box}
+html{background:var(--ground)}
+body{
+  margin:0; color:var(--ink);
+  background:
+    radial-gradient(900px 620px at 6% -8%, rgba(139,124,255,.10), transparent 62%),
+    radial-gradient(760px 560px at 97% 2%, rgba(47,208,138,.05), transparent 60%),
+    var(--ground);
+  font-family:"IBM Plex Sans KR",system-ui,-apple-system,"Malgun Gothic",sans-serif;
+  font-size:15px; line-height:1.6; letter-spacing:-.003em; -webkit-font-smoothing:antialiased;
+}
+.num{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pos{color:var(--gain)} .neg{color:var(--loss)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+.shell{max-width:1400px;margin:0 auto;padding:0 22px 80px}
+
+/* ── header ─────────────────────────────────────────────── */
+.top{
+  position:sticky;top:0;z-index:30;background:rgba(10,12,17,.93);
+  border-bottom:1px solid var(--edge);margin:0 -22px 24px;padding:14px 22px;
+  display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px var(--accent-dim)}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.02em}
+.brand span{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.2em;color:var(--ink-3);
+  padding-left:9px;border-left:1px solid var(--edge)}
+.top-right{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.chip{display:flex;align-items:baseline;gap:7px;background:var(--panel);border:1px solid var(--edge);
+  border-radius:999px;padding:5px 13px;font-size:11.5px;color:var(--ink-3)}
+.chip b{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;color:var(--ink)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--gain);animation:pulse 2s ease-in-out infinite}
+.live-dot.off{background:var(--ink-3);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+button{font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--ink);
+  background:var(--panel-2);border:1px solid var(--edge);border-radius:var(--r-sm);padding:8px 14px;
+  transition:background .14s,border-color .14s}
+button:hover{background:rgba(255,255,255,.09);border-color:var(--edge-2)}
+button.primary{background:linear-gradient(180deg,var(--accent),#6E5DF0);border-color:rgba(139,124,255,.5);
+  color:#0B0A18;font-weight:600}
+button:disabled{opacity:.45;cursor:not-allowed}
+
+/* ── progress ───────────────────────────────────────────── */
+.scan{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:22px}
+.scan-head{display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap}
+.scan-head h2{margin:0;font-size:13.5px;font-weight:600}
+.scan-head p{margin:0;font-size:12px;color:var(--ink-3)}
+.bar{height:5px;background:rgba(255,255,255,.07);border-radius:99px;overflow:hidden;margin-top:12px}
+.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));
+  border-radius:99px;transition:width .25s}
+
+/* ── controls ───────────────────────────────────────────── */
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;
+  background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:22px}
+.ctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ctl label{font-size:11px;color:var(--ink-3)}
+.ctl input,.ctl select{font:inherit;font-size:13.5px;padding:8px 10px;border-radius:var(--r-sm);
+  border:1px solid var(--edge);background:rgba(0,0,0,.32);color:var(--ink);min-width:0}
+.ctl input{font-family:"JetBrains Mono",monospace}
+.ctl input:focus,.ctl select:focus{border-color:rgba(139,124,255,.55);outline:none}
+
+/* ── stats ──────────────────────────────────────────────── */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:22px}
+.stat{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-md);padding:13px 15px}
+.stat dt{margin:0;font-size:11px;color:var(--ink-3)}
+.stat dd{margin:7px 0 0;font-family:"JetBrains Mono",monospace;font-size:21px;font-weight:600;letter-spacing:-.03em}
+
+/* ── table ──────────────────────────────────────────────── */
+.wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;min-width:1020px}
+/* sticky 를 쓰지 않는다: .wrap 이 overflow-x 로 스크롤 컨테이너가 되면서
+   sticky 의 top 이 '뷰포트'가 아니라 '.wrap 안쪽' 기준이 되어,
+   헤더가 첫 행 아래로 60px 밀려 내려간다. */
+thead th{font-size:11px;font-weight:500;color:var(--ink-3);text-align:right;padding:12px 14px;
+  border-bottom:1px solid var(--edge);white-space:nowrap;background:rgba(255,255,255,.02);
+  cursor:pointer;user-select:none}
+thead th:first-child,thead th:nth-child(2),tbody td:first-child,tbody td:nth-child(2){text-align:left}
+thead th:hover{color:var(--ink)}
+thead th .arrow{color:var(--accent);margin-left:3px}
+tbody td{padding:10px 14px;text-align:right;border-bottom:1px solid rgba(255,255,255,.045);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer;transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.04)}
+tbody tr.open{background:rgba(139,124,255,.08)}
+.sym{font-weight:600;letter-spacing:-.01em}
+.rank{color:var(--ink-3);font-family:"JetBrains Mono",monospace}
+.scorebar{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.scorebar .track{width:46px;height:4px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
+.scorebar .track i{display:block;height:100%;background:var(--accent);border-radius:99px}
+td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
+@keyframes fu{0%{background:rgba(47,208,138,.28)}100%{background:transparent}}
+@keyframes fd{0%{background:rgba(242,96,92,.28)}100%{background:transparent}}
+.detail td{background:rgba(0,0,0,.28);padding:14px 18px}
+.checks{display:flex;gap:9px;flex-wrap:wrap}
+.check{display:flex;align-items:center;gap:7px;font-size:12px;background:rgba(255,255,255,.04);
+  border:1px solid var(--edge);border-radius:99px;padding:5px 12px}
+.check .mark{font-family:"JetBrains Mono",monospace;font-weight:700}
+.check.ok .mark{color:var(--gain)} .check.no .mark{color:var(--loss)}
+.check em{font-style:normal;color:var(--ink-3);font-family:"JetBrains Mono",monospace;font-size:11px}
+
+.empty{padding:56px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
+.note{font-size:12px;color:var(--ink-3);line-height:1.7;margin-top:14px}
+.note code{font-family:"JetBrains Mono",monospace;font-size:11px;background:rgba(255,255,255,.055);
+  padding:2px 6px;border-radius:5px;color:var(--accent-2)}
+.err{background:rgba(242,96,92,.1);border:1px solid rgba(242,96,92,.35);color:#FFC9C5;
+  border-radius:var(--r-md);padding:12px 15px;font-size:12.5px;margin-bottom:18px}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="top">
+    <div class="brand"><span class="dot"></span><b>이데아랩 스크리너</b><span>OKX USDT PERP</span></div>
+    <div class="top-right">
+      <div class="chip"><span class="live-dot off" id="live-dot"></span><span id="live-label">대기</span><b class="num" id="live-ts">—</b></div>
+      <div class="chip">통과<b class="num" id="chip-pass">—</b></div>
+      <div class="chip">스캔<b class="num" id="chip-total">—</b></div>
+      <button type="button" id="btn-copy">텔레그램 문구 복사</button>
+      <button type="button" class="primary" id="btn-rescan">다시 스캔</button>
+    </div>
+  </header>
+
+  <div id="error-box"></div>
+
+  <section class="scan" id="scan-box">
+    <div class="scan-head">
+      <h2 id="scan-title">시세를 불러오는 중…</h2>
+      <p id="scan-sub">OKX 공개 API · 인증 없음</p>
+    </div>
+    <div class="bar"><i id="scan-bar"></i></div>
+  </section>
+
+  <section class="controls">
+    <div class="ctl"><label for="c-range">전일봉 변동성 하한 (%)</label>
+      <input type="number" id="c-range" value="10" step="0.5" min="0"></div>
+    <div class="ctl"><label for="c-years">차트 기간 하한 (년)</label>
+      <input type="number" id="c-years" value="1" step="0.5" min="0"></div>
+    <div class="ctl"><label for="c-drop">하락폭 상한 (%)</label>
+      <input type="number" id="c-drop" value="50" step="5" min="0"></div>
+    <div class="ctl"><label for="c-mode">하락폭 해석</label>
+      <select id="c-mode">
+        <option value="body">봉 몸통 (시가→종가)</option>
+        <option value="wick">봉 전체 (고가→저가)</option>
+        <option value="mdd">전 구간 최대낙폭</option>
+        <option value="ath">전고점 대비 현재</option>
+      </select></div>
+    <div class="ctl"><label for="c-turnover">24h 거래대금 하한 (백만)</label>
+      <input type="number" id="c-turnover" value="3" step="1" min="0"></div>
+    <div class="ctl"><label for="c-interval">실시간 갱신 (초)</label>
+      <input type="number" id="c-interval" value="3" step="1" min="2" max="60"></div>
+  </section>
+
+  <dl class="stats">
+    <div class="stat"><dt>조건 통과</dt><dd class="num" id="s-pass">—</dd></div>
+    <div class="stat"><dt>평균 점수</dt><dd class="num" id="s-avg">—</dd></div>
+    <div class="stat"><dt>평균 변동성</dt><dd class="num" id="s-vol">—</dd></div>
+    <div class="stat"><dt>마지막 전체 스캔</dt><dd class="num" id="s-scan">—</dd></div>
+  </dl>
+
+  <div class="wrap">
+    <table>
+      <thead><tr>
+        <th data-sort="rank">#</th>
+        <th data-sort="sym">종목</th>
+        <th data-sort="score">점수</th>
+        <th data-sort="last">현재가</th>
+        <th data-sort="chg">24h</th>
+        <th data-sort="range">전일 변동성</th>
+        <th data-sort="mid">20일선 대비</th>
+        <th data-sort="turnover">24h 거래대금</th>
+        <th data-sort="drop">최대 하락</th>
+        <th data-sort="years">차트</th>
+      </tr></thead>
+      <tbody id="tbody"><tr><td colspan="10" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+    </table>
+  </div>
+
+  <p class="note">
+    행을 클릭하면 조건별 통과·탈락 사유가 펼쳐집니다. 헤더를 클릭하면 정렬됩니다.<br>
+    <b>전일봉 변동성·차트 기간·최대 하락폭</b>은 하루 한 번(UTC 00:00 봉 마감) 바뀌므로 전체 스캔 결과를 캐시해 두고,
+    <b>현재가·20일선 대비·거래대금·점수</b>는 설정한 주기마다 실시간으로 다시 계산합니다.
+    조건 값을 바꾸면 다시 스캔하지 않고 즉시 재판정합니다.
+  </p>
+</div>
+
+<script>
+"use strict";
+/* ══════════════════════════════════════════════════════════════════
+   이데아랩 종목 스크리너 — 브라우저에서 OKX 공개 API를 직접 호출한다.
+   서버도, API 키도 필요 없다. 시세 조회는 공개 엔드포인트다.
+   ══════════════════════════════════════════════════════════════════ */
+
+const API = "https://www.okx.com";
+const CACHE_KEY = "idea-screener-scan-v1";
+const DAY_MS = 86400000;
+
+const CFG = { minRange:.10, minYears:1, maxDrop:.50, dropMode:"body", minTurnover:3e6, bbPeriod:20, interval:3 };
+
+let INSTRUMENTS = [];        // [{instId, ctVal}]
+let METRICS = {};            // instId -> 일/주/월봉에서 뽑은 정적 지표 (하루 1회 갱신)
+let TICKERS = {};            // instId -> 실시간 티커
+let PREV_PRICE = {};         // 깜빡임 효과용
+let ROWS = [];               // 화면에 그릴 현재 결과
+let SORT = { key:"score", dir:-1 };
+let OPEN_ROW = null;
+let liveTimer = null;
+let scanning = false;
+
+/* ── 요청 유틸 ─────────────────────────────────────────────────── */
+/* 실측: OKX 공개 엔드포인트는 초당 16건 이상도 에러 없이 받아준다.
+   그래서 요청마다 간격을 두지 않고, 동시 실행 개수로만 조절한다.
+   요청 과다(50011) 응답이 오면 그때만 전체가 잠깐 쉬어간다. */
+let cooldownUntil = 0;
+
+async function api(path, tries = 4){
+  for (let i = 0; i < tries; i++){
+    const wait = cooldownUntil - Date.now();
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
+    try{
+      const res = await fetch(API + path, { cache:"no-store" });
+      const json = await res.json();
+      if (json.code === "0") return json.data || [];
+      if (json.code === "50011" || json.code === "50013" || res.status === 429){
+        cooldownUntil = Date.now() + 500 * (i + 1);   // 모든 요청이 함께 쉰다
+        continue;
+      }
+      throw new Error(json.msg || ("code " + json.code));
+    }catch(err){
+      if (i === tries - 1) throw err;
+      await new Promise(r => setTimeout(r, 300 * (i + 1)));
+    }
+  }
+  return [];
+}
+
+/* ── 지표 ──────────────────────────────────────────────────────── */
+const mean = a => a.reduce((s,x) => s + x, 0) / a.length;
+function stdev(a){ const m = mean(a); return Math.sqrt(mean(a.map(x => (x - m) ** 2))); }
+
+function parseCandles(rows){
+  // [ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]  — confirm!=="1" 은 진행 중인 봉
+  return rows
+    .filter(r => r[8] === "1")
+    .map(r => ({ ts:+r[0], o:+r[1], h:+r[2], l:+r[3], c:+r[4] }))
+    .sort((a,b) => a.ts - b.ts);
+}
+const wickDrop = c => c.h ? (c.h - c.l) / c.h : 0;
+const bodyDrop = c => (c.o && c.c < c.o) ? (c.o - c.c) / c.o : 0;
+
+function maxDrawdown(cs){
+  let peak = 0, mdd = 0;
+  for (const c of cs){ peak = Math.max(peak, c.h); if (peak) mdd = Math.max(mdd, (peak - c.l) / peak); }
+  return mdd;
+}
+
+/* 한 종목의 정적 지표. 하루 한 번만 계산하면 되는 값들. */
+async function scanSymbol(instId){
+  const [d, w, m] = await Promise.all([
+    api(`/api/v5/market/candles?instId=${instId}&bar=1D&limit=300`).then(parseCandles),
+    api(`/api/v5/market/candles?instId=${instId}&bar=1W&limit=300`).then(parseCandles),
+    api(`/api/v5/market/candles?instId=${instId}&bar=1M&limit=300`).then(parseCandles),  // 대문자 M = 월봉
+  ]);
+  if (!d.length) return null;
+
+  const prev = d[d.length - 1];                       // 마지막으로 마감된 일봉 = 전일봉
+  const closes = d.map(c => c.c);
+  const p = CFG.bbPeriod;
+  const win = closes.slice(-p);
+  const mid = win.length >= p ? mean(win) : null;      // 볼린저 중단 = 20일 단순이동평균
+  const sd  = win.length >= p ? stdev(win) : null;
+
+  const oldest = (m[0] || w[0] || d[0]).ts;
+  const wk = w.length ? Math.max(...w.map(wickDrop)) : 0;
+  const mo = m.length ? Math.max(...m.map(wickDrop)) : 0;
+  const wkB = w.length ? Math.max(...w.map(bodyDrop)) : 0;
+  const moB = m.length ? Math.max(...m.map(bodyDrop)) : 0;
+  const ath = Math.max(...(w.length ? w : d).map(c => c.h));
+
+  // 20일선 기울기 — 추세 점수용
+  let slope = 0;
+  if (closes.length >= p + 5){
+    const now = mean(closes.slice(-p));
+    const then = mean(closes.slice(-p - 5, -5));
+    slope = then ? (now - then) / then : 0;
+  }
+
+  return {
+    rangePct: prev.l ? (prev.h - prev.l) / prev.l : 0,   // 조건1: 전일봉 (고-저)/저
+    years: (Date.now() - oldest) / DAY_MS / 365,         // 조건2
+    dropWick: Math.max(wk, mo),                          // 조건3 (봉 전체)
+    dropBody: Math.max(wkB, moB),                        // 조건3 (몸통)
+    dropMdd: Math.max(maxDrawdown(w), maxDrawdown(m)),   // 조건3 (전 구간)
+    ath, bbMid: mid, bbUpper: mid != null ? mid + 2 * sd : null,
+    slope, dailyClose: closes[closes.length - 1],
+  };
+}
+
+/* ── 조건 판정 + 점수 ──────────────────────────────────────────── */
+function dropOf(mx, last){
+  if (CFG.dropMode === "wick") return { v:mx.dropWick, label:`봉 전체 ${(mx.dropWick*100).toFixed(0)}%` };
+  if (CFG.dropMode === "mdd")  return { v:mx.dropMdd,  label:`전 구간 MDD ${(mx.dropMdd*100).toFixed(0)}%` };
+  if (CFG.dropMode === "ath")  return { v:mx.ath ? (mx.ath - last) / mx.ath : 0,
+                                        label:`전고점 대비 ${(((mx.ath - last)/mx.ath)*100).toFixed(0)}%` };
+  return { v:mx.dropBody, label:`봉 몸통 ${(mx.dropBody*100).toFixed(0)}%` };
+}
+
+const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
+const scale = (v, lo, hi) => hi <= lo ? 0 : clamp01((v - lo) / (hi - lo));
+
+function judge(instId, mx, tk){
+  const last = +tk.last || mx.dailyClose;
+  const turnover = (+tk.volCcy24h || 0) * last;          // volCcy24h 는 기초자산 수량 → 가격을 곱해야 USDT
+  const chg = +tk.open24h ? (last - +tk.open24h) / +tk.open24h : 0;
+  const midPct = mx.bbMid ? (last - mx.bbMid) / mx.bbMid : 0;
+  const drop = dropOf(mx, last);
+
+  const checks = [
+    { name:"변동성",  ok: mx.rangePct >= CFG.minRange,
+      detail:`${(mx.rangePct*100).toFixed(2)}% ≥ ${(CFG.minRange*100).toFixed(0)}%` },
+    { name:"차트기간", ok: mx.years >= CFG.minYears,
+      detail:`${mx.years.toFixed(1)}년 ≥ ${CFG.minYears}년` },
+    { name:"하락폭",  ok: drop.v <= CFG.maxDrop,
+      detail:`${drop.label} ≤ ${(CFG.maxDrop*100).toFixed(0)}%` },
+    { name:"20일선",  ok: mx.bbMid != null && last > mx.bbMid,
+      detail: mx.bbMid == null ? "일봉 20개 미만"
+        : `${last.toPrecision(6)} vs ${mx.bbMid.toPrecision(6)} (${(midPct*100).toFixed(2)}%)` },
+    { name:"유동성",  ok: turnover >= CFG.minTurnover,
+      detail:`${(turnover/1e6).toFixed(1)}M ≥ ${(CFG.minTurnover/1e6).toFixed(0)}M` },
+  ];
+
+  // 점수 — 거미줄매매를 걸 자리로서의 적합도
+  const volatility = scale(mx.rangePct, .10, .25);                 // 깔아둘 폭
+  const trend = .5 * scale(midPct, 0, .15) + .5 * scale(mx.slope, -.03, .08);
+  const liquidity = turnover > 0 ? scale(Math.pow(turnover/3e6, .35), 1, Math.pow(200/3, .35)) : 0;
+  const stability = 1 - scale(drop.v, .15, .50);
+  let total = (volatility*.30 + trend*.30 + liquidity*.25 + stability*.15) * 100;
+  const overheat = mx.bbUpper != null && last > mx.bbUpper;
+  if (overheat) total -= 12;                                        // 볼린저 상단 밖 = 과열
+
+  return {
+    instId, sym: instId.replace("-USDT-SWAP",""),
+    passed: checks.every(c => c.ok), checks,
+    score: Math.max(0, Math.min(100, Math.round(total*10)/10)),
+    parts:{ volatility:volatility*100, trend:trend*100, liquidity:liquidity*100, stability:stability*100, overheat },
+    last, chg, turnover, midPct, range: mx.rangePct, drop: drop.v, years: mx.years,
+  };
+}
+
+/* ── 스캔 ──────────────────────────────────────────────────────── */
+function setProgress(pct, title, sub){
+  document.getElementById("scan-bar").style.width = pct + "%";
+  if (title != null) document.getElementById("scan-title").textContent = title;
+  if (sub != null) document.getElementById("scan-sub").textContent = sub;
+}
+function showError(msg){
+  document.getElementById("error-box").innerHTML =
+    `<div class="err"><b>문제가 생겼습니다.</b><br>${msg}</div>`;
+}
+
+async function pool(items, limit, fn, onDone){
+  let i = 0, done = 0;
+  const workers = Array.from({length: Math.min(limit, items.length)}, async () => {
+    while (i < items.length){
+      const item = items[i++];
+      try { await fn(item); } catch(e) { /* 한 종목이 실패해도 스캔은 계속 */ }
+      onDone(++done);
+    }
+  });
+  await Promise.all(workers);
+}
+
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+function loadCache(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(CACHE_KEY) || "null");
+    if (raw && raw.date === todayKey() && raw.metrics) return raw;
+  }catch(e){}
+  return null;
+}
+function saveCache(){
+  try{
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ date: todayKey(), at: Date.now(), metrics: METRICS }));
+  }catch(e){ /* 용량 초과 등 — 캐시는 없어도 동작한다 */ }
+}
+
+async function fullScan(force){
+  if (scanning) return;
+  scanning = true;
+  document.getElementById("btn-rescan").disabled = true;
+  document.getElementById("error-box").innerHTML = "";
+  document.getElementById("scan-box").style.display = "";
+
+  try{
+    setProgress(4, "종목 목록을 받는 중…", "OKX 공개 API · 인증 없음");
+    const insts = await api("/api/v5/public/instruments?instType=SWAP");
+    INSTRUMENTS = insts
+      .filter(r => r.state === "live" && r.settleCcy === "USDT" && r.ctType === "linear")
+      .map(r => ({ instId: r.instId, ctVal:+r.ctVal || 0 }));
+
+    setProgress(8, "시세를 받는 중…", `${INSTRUMENTS.length}종목`);
+    await refreshTickers();
+
+    const cached = force ? null : loadCache();
+    if (cached){
+      METRICS = cached.metrics;
+      setProgress(100, "오늘 스캔 결과를 불러왔습니다",
+        `${Object.keys(METRICS).length}종목 · ${new Date(cached.at).toLocaleTimeString("ko-KR")} 기준`);
+      document.getElementById("s-scan").textContent = new Date(cached.at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      setTimeout(() => { document.getElementById("scan-box").style.display = "none"; }, 1400);
+    } else {
+      // 거래대금이 아주 낮은 종목은 어차피 탈락 — 먼저 걸러 요청 수를 줄인다
+      const targets = INSTRUMENTS.filter(i => {
+        const t = TICKERS[i.instId]; if (!t) return false;
+        return (+t.volCcy24h || 0) * (+t.last || 0) >= 5e5;
+      });
+      METRICS = {};
+      let n = 0;
+      await pool(targets, 8, async (inst) => {
+        const mx = await scanSymbol(inst.instId);
+        if (mx) METRICS[inst.instId] = mx;
+      }, (done) => {
+        n = done;
+        setProgress(8 + 90 * done / targets.length,
+          "전체 스캔 중… 일봉·주봉·월봉을 읽고 있습니다",
+          `${done} / ${targets.length}종목`);
+        if (done % 15 === 0) render();
+      });
+      saveCache();
+      setProgress(100, "스캔 완료", `${n}종목 · 하루 한 번이면 충분합니다`);
+      document.getElementById("s-scan").textContent = new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+      setTimeout(() => { document.getElementById("scan-box").style.display = "none"; }, 1600);
+    }
+    render();
+    startLive();
+  }catch(err){
+    showError(`OKX 연결에 실패했습니다: ${err.message}<br>
+      네트워크를 확인하고 <b>다시 스캔</b>을 눌러 주세요. 회사·학교 네트워크나 일부 국가에서는 거래소 접속이 막혀 있을 수 있습니다.`);
+    setProgress(0, "스캔 실패", "다시 스캔을 눌러 주세요");
+  }finally{
+    scanning = false;
+    document.getElementById("btn-rescan").disabled = false;
+  }
+}
+
+/* ── 실시간 ────────────────────────────────────────────────────── */
+async function refreshTickers(){
+  const rows = await api("/api/v5/market/tickers?instType=SWAP");
+  const next = {};
+  for (const r of rows) next[r.instId] = r;
+  TICKERS = next;
+}
+
+function startLive(){
+  if (liveTimer) clearInterval(liveTimer);
+  const dot = document.getElementById("live-dot");
+  dot.classList.remove("off");
+  document.getElementById("live-label").textContent = "실시간";
+  const tick = async () => {
+    if (document.hidden) return;                 // 탭이 숨겨져 있으면 쉬어간다
+    try{
+      await refreshTickers();
+      render();
+      document.getElementById("live-ts").textContent = new Date().toLocaleTimeString("ko-KR",{hour12:false});
+    }catch(e){
+      dot.classList.add("off");
+      document.getElementById("live-label").textContent = "끊김";
+    }
+  };
+  tick();
+  liveTimer = setInterval(tick, Math.max(2, CFG.interval) * 1000);
+}
+
+/* ── 렌더 ──────────────────────────────────────────────────────── */
+const fmtPrice = v => v >= 1000 ? v.toLocaleString("en-US",{maximumFractionDigits:1})
+                    : v >= 1 ? v.toFixed(3) : v.toPrecision(4);
+const pct = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(2) + "%";
+const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
+
+function compute(){
+  const out = [];
+  for (const [instId, mx] of Object.entries(METRICS)){
+    const tk = TICKERS[instId];
+    if (!tk) continue;
+    out.push(judge(instId, mx, tk));
+  }
+  return out;
+}
+
+function sortRows(rows){
+  const key = SORT.key, dir = SORT.dir;
+  const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
+                      mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years, rank:r.score }[key]);
+  return rows.sort((a,b) => {
+    const x = val(a), y = val(b);
+    if (typeof x === "string") return dir * x.localeCompare(y);
+    return dir * (x - y);
+  });
+}
+
+function render(){
+  const all = compute();
+  const passed = sortRows(all.filter(r => r.passed));
+  ROWS = passed;
+
+  document.getElementById("chip-pass").textContent = passed.length;
+  document.getElementById("chip-total").textContent = all.length;
+  document.getElementById("s-pass").textContent = passed.length;
+  document.getElementById("s-avg").textContent = passed.length
+    ? (passed.reduce((s,r) => s + r.score, 0) / passed.length).toFixed(1) : "—";
+  document.getElementById("s-vol").textContent = passed.length
+    ? (passed.reduce((s,r) => s + r.range, 0) / passed.length * 100).toFixed(1) + "%" : "—";
+
+  const tb = document.getElementById("tbody");
+  if (!passed.length){
+    tb.innerHTML = `<tr><td colspan="10" class="empty">${
+      Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
+                                  : "스캔을 준비하는 중…"}</td></tr>`;
+    return;
+  }
+
+  const html = [];
+  passed.forEach((r, i) => {
+    const prev = PREV_PRICE[r.instId];
+    const flash = prev == null || prev === r.last ? "" : (r.last > prev ? "flash-up" : "flash-down");
+    PREV_PRICE[r.instId] = r.last;
+    const isOpen = OPEN_ROW === r.instId;
+    html.push(`<tr data-id="${r.instId}" class="${isOpen ? "open" : ""}">
+      <td class="rank">${i + 1}</td>
+      <td class="sym">${r.sym}</td>
+      <td><div class="scorebar"><span class="track"><i style="width:${r.score}%"></i></span>
+        <b class="num">${r.score.toFixed(1)}</b></div></td>
+      <td class="num ${flash}">${fmtPrice(r.last)}</td>
+      <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
+      <td class="num">${(r.range * 100).toFixed(1)}%</td>
+      <td class="num ${cls(r.midPct)}">${pct(r.midPct)}</td>
+      <td class="num">${(r.turnover / 1e6).toFixed(1)}M</td>
+      <td class="num">${(r.drop * 100).toFixed(0)}%</td>
+      <td class="num">${r.years.toFixed(1)}y</td>
+    </tr>`);
+    if (isOpen){
+      html.push(`<tr class="detail"><td colspan="10">
+        <div class="checks">${r.checks.map(c =>
+          `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
+           ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
+        <div class="checks" style="margin-top:10px">
+          <span class="check">변동성 <em>${r.parts.volatility.toFixed(0)}</em></span>
+          <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
+          <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
+          <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
+          ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
+        </div></td></tr>`);
+    }
+  });
+  tb.innerHTML = html.join("");
+}
+
+/* ── 이벤트 ────────────────────────────────────────────────────── */
+document.getElementById("tbody").addEventListener("click", (e) => {
+  const tr = e.target.closest("tr[data-id]");
+  if (!tr) return;
+  OPEN_ROW = OPEN_ROW === tr.dataset.id ? null : tr.dataset.id;
+  render();
+});
+
+document.querySelectorAll("thead th[data-sort]").forEach(th => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    SORT = SORT.key === key ? { key, dir: -SORT.dir } : { key, dir: key === "sym" ? 1 : -1 };
+    document.querySelectorAll("thead th .arrow").forEach(a => a.remove());
+    const arrow = document.createElement("span");
+    arrow.className = "arrow"; arrow.textContent = SORT.dir > 0 ? "▲" : "▼";
+    th.appendChild(arrow);
+    render();
+  });
+});
+
+const bind = (id, key, transform) => {
+  document.getElementById(id).addEventListener("input", (e) => {
+    const v = e.target.type === "number" ? parseFloat(e.target.value) : e.target.value;
+    if (e.target.type === "number" && !isFinite(v)) return;
+    CFG[key] = transform ? transform(v) : v;
+    if (key === "interval") startLive(); else render();
+  });
+};
+bind("c-range", "minRange", v => v / 100);
+bind("c-years", "minYears");
+bind("c-drop", "maxDrop", v => v / 100);
+bind("c-mode", "dropMode");
+bind("c-turnover", "minTurnover", v => v * 1e6);
+bind("c-interval", "interval");
+
+document.getElementById("btn-rescan").addEventListener("click", () => fullScan(true));
+
+document.getElementById("btn-copy").addEventListener("click", async (e) => {
+  const d = new Date();
+  const wd = "일월화수목금토"[d.getDay()];
+  const bar = "━".repeat(18);
+  const lines = ["🔎 이데아랩 종목 스크리너",
+    `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} (${wd}) ${d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`,
+    "", bar];
+  if (!ROWS.length) lines.push("조건을 통과한 종목이 없습니다.");
+  else ROWS.slice(0,5).forEach((r,i) => {
+    lines.push(`${i+1}. ${r.sym}  ${r.score.toFixed(0)}점`);
+    lines.push(`   변동성 ${(r.range*100).toFixed(1)}% · 20일선 ${pct(r.midPct).replace("−","-")} · ${(r.turnover/1e6).toFixed(0)}M`);
+  });
+  lines.push(bar, "", "— IDEA Lab");
+  const text = lines.join("\n");
+  try{ await navigator.clipboard.writeText(text); e.target.textContent = "복사했습니다"; }
+  catch(err){
+    const ta = document.createElement("textarea");
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); e.target.textContent = "복사했습니다"; }
+    catch(e2){ e.target.textContent = "복사 실패"; }
+    ta.remove();
+  }
+  setTimeout(() => { e.target.textContent = "텔레그램 문구 복사"; }, 1800);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden && !scanning) startLive();
+});
+
+fullScan(false);
+</script>
+</body>
+</html>
