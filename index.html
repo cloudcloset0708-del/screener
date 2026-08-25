@@ -133,6 +133,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
     <div class="brand"><span class="dot"></span><b>이데아랩 스크리너</b><span>OKX USDT PERP</span></div>
     <div class="top-right">
       <div class="chip"><span class="live-dot off" id="live-dot"></span><span id="live-label">대기</span><b class="num" id="live-ts">—</b></div>
+      <div class="chip">파동<b class="num" id="wave-ts">—</b></div>
       <div class="chip">통과<b class="num" id="chip-pass">—</b></div>
       <div class="chip">스캔<b class="num" id="chip-total">—</b></div>
       <button type="button" id="btn-copy">텔레그램 문구 복사</button>
@@ -166,6 +167,8 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
       </select></div>
     <div class="ctl"><label for="c-turnover">24h 거래대금 하한 (백만)</label>
       <input type="number" id="c-turnover" value="3" step="1" min="0"></div>
+    <div class="ctl"><label for="c-wave">파동 관측 구간 (시간)</label>
+      <input type="number" id="c-wave" value="6" step="1" min="2" max="24"></div>
     <div class="ctl"><label for="c-interval">실시간 갱신 (초)</label>
       <input type="number" id="c-interval" value="3" step="1" min="2" max="60"></div>
   </section>
@@ -183,6 +186,8 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="rank">#</th>
         <th data-sort="sym">종목</th>
         <th data-sort="score">점수</th>
+        <th data-sort="swings">되돌림/h</th>
+        <th data-sort="dir">방향성</th>
         <th data-sort="last">현재가</th>
         <th data-sort="chg">24h</th>
         <th data-sort="range">전일 변동성</th>
@@ -191,7 +196,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="drop">최대 하락</th>
         <th data-sort="years">차트</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="10" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="12" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
 
@@ -214,11 +219,13 @@ const API = "https://www.okx.com";
 const CACHE_KEY = "idea-screener-scan-v1";
 const DAY_MS = 86400000;
 
-const CFG = { minRange:.10, minYears:1, maxDrop:.50, dropMode:"body", minTurnover:3e6, bbPeriod:20, interval:3 };
+const CFG = { minRange:.10, minYears:1, maxDrop:.50, dropMode:"body", minTurnover:3e6,
+              bbPeriod:20, interval:3, waveHours:6, minSwings:0 };
 
 let INSTRUMENTS = [];        // [{instId, ctVal}]
 let METRICS = {};            // instId -> 일/주/월봉에서 뽑은 정적 지표 (하루 1회 갱신)
 let TICKERS = {};            // instId -> 실시간 티커
+let WAVES = {};              // instId -> 파동 지표 (통과 종목만, 몇 분마다 갱신)
 let PREV_PRICE = {};         // 깜빡임 효과용
 let ROWS = [];               // 화면에 그릴 현재 결과
 let SORT = { key:"score", dir:-1 };
@@ -266,6 +273,41 @@ function parseCandles(rows){
 }
 const wickDrop = c => c.h ? (c.h - c.l) / c.h : 0;
 const bodyDrop = c => (c.o && c.c < c.o) ? (c.o - c.c) / c.o : 0;
+
+/* ── 파동 ────────────────────────────────────────────────────────────
+   거미줄매매의 수익은 '잔 파동'에서 나온다. 한 방향으로 흐르면 매수만
+   체결되고 익절이 하나도 안 걸려 물량만 쌓인다. 그래서 일봉 변동성이
+   아니라 '되돌림이 얼마나 자주 나오는가'가 핵심 지표다. */
+const WAVE_AMP = 0.5;          // 익절 폭과 같은 진폭을 파동 1회로 센다
+
+function countSwings(cs, amp){
+  if (cs.length < 2) return 0;
+  let pivot = cs[0].c, dir = 0, ups = 0;
+  for (const x of cs){
+    for (const price of [x.l, x.h]){        // 봉 내부는 저→고 순으로 가정
+      if (!pivot) continue;
+      const ch = (price - pivot) / pivot * 100;
+      if (dir >= 0 && ch <= -amp){ dir = -1; pivot = price; }
+      else if (dir <= 0 && ch >= amp){ dir = 1; pivot = price; ups++; }
+    }
+  }
+  return ups;
+}
+
+function analyzeWaves(cs, hours){
+  if (cs.length < 8) return { hours:0, swingsPerHour:0, directionality:0, pathPerHour:0 };
+  const win = cs.slice(-Math.max(8, Math.round(hours * 4)));
+  const span = win.length * 0.25;
+  const path = win.reduce((s,x) => s + (x.l ? (x.h - x.l) / x.l * 100 : 0), 0);
+  const first = win[0].o || win[0].c;
+  const net = first ? (win[win.length-1].c - first) / first * 100 : 0;
+  return {
+    hours: span,
+    swingsPerHour: countSwings(win, WAVE_AMP) / span,
+    directionality: path ? Math.abs(net) / path : 0,
+    pathPerHour: path / span,
+  };
+}
 
 function maxDrawdown(cs){
   let peak = 0, mdd = 0;
@@ -348,12 +390,17 @@ function judge(instId, mx, tk){
       detail:`${(turnover/1e6).toFixed(1)}M ≥ ${(CFG.minTurnover/1e6).toFixed(0)}M` },
   ];
 
-  // 점수 — 거미줄매매를 걸 자리로서의 적합도
+  // 점수 — 되돌림 빈도가 수익의 원천이므로 배점이 가장 크다
+  const w = WAVES[instId] || { swingsPerHour:0, directionality:0, pathPerHour:0, hours:0 };
+  const waves = scale(w.swingsPerHour, .5, 3.5);   // 3.5회/h = 2026-08-24 TRUMP 전승 세션 실측
   const volatility = scale(mx.rangePct, .10, .25);                 // 깔아둘 폭
   const trend = .5 * scale(midPct, 0, .15) + .5 * scale(mx.slope, -.03, .08);
   const liquidity = turnover > 0 ? scale(Math.pow(turnover/3e6, .35), 1, Math.pow(200/3, .35)) : 0;
   const stability = 1 - scale(drop.v, .15, .50);
-  let total = (volatility*.30 + trend*.30 + liquidity*.25 + stability*.15) * 100;
+  let total = (waves*.35 + volatility*.20 + liquidity*.20 + stability*.15 + trend*.10) * 100;
+  // 원웨이 감점: 방향성 0.05 이하 무감점, 0.18 이상 최대 25점
+  const oneway = scale(w.directionality, .05, .18) * 25;
+  if (oneway > 0) total -= oneway;
   const overheat = mx.bbUpper != null && last > mx.bbUpper;
   if (overheat) total -= 12;                                        // 볼린저 상단 밖 = 과열
 
@@ -361,8 +408,10 @@ function judge(instId, mx, tk){
     instId, sym: instId.replace("-USDT-SWAP",""),
     passed: checks.every(c => c.ok), checks,
     score: Math.max(0, Math.min(100, Math.round(total*10)/10)),
-    parts:{ volatility:volatility*100, trend:trend*100, liquidity:liquidity*100, stability:stability*100, overheat },
+    parts:{ waves:waves*100, volatility:volatility*100, trend:trend*100,
+            liquidity:liquidity*100, stability:stability*100, oneway:-oneway, overheat },
     last, chg, turnover, midPct, range: mx.rangePct, drop: drop.v, years: mx.years,
+    swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
   };
 }
 
@@ -453,6 +502,9 @@ async function fullScan(force){
     }
     render();
     startLive();
+    scanWaves();
+    if (waveTimer) clearInterval(waveTimer);
+    waveTimer = setInterval(() => { if (!document.hidden) scanWaves(); }, 5 * 60 * 1000);
   }catch(err){
     showError(`OKX 연결에 실패했습니다: ${err.message}<br>
       네트워크를 확인하고 <b>다시 스캔</b>을 눌러 주세요. 회사·학교 네트워크나 일부 국가에서는 거래소 접속이 막혀 있을 수 있습니다.`);
@@ -461,6 +513,35 @@ async function fullScan(force){
     scanning = false;
     document.getElementById("btn-rescan").disabled = false;
   }
+}
+
+/* ── 파동 스캔 (통과 종목만, 몇 분마다) ────────────────────────── */
+/* 15분봉을 전 종목에 받으면 요청이 4배로 뛴다. 조건을 통과한
+   30종목 안팎만 받아 5분마다 갱신한다. */
+let waveTimer = null;
+
+/* 파동 지표 없이 조건만 먼저 판정한다 (파동 스캔 대상 고르기용) */
+function passesStatic(instId, mx, tk){
+  const last = +tk.last || mx.dailyClose;
+  const turnover = (+tk.volCcy24h || 0) * last;
+  return mx.rangePct >= CFG.minRange && mx.years >= CFG.minYears &&
+         dropOf(mx, last).v <= CFG.maxDrop && mx.bbMid != null && last > mx.bbMid &&
+         turnover >= CFG.minTurnover;
+}
+
+async function scanWaves(){
+  const targets = Object.keys(METRICS)
+    .filter(id => TICKERS[id] && passesStatic(id, METRICS[id], TICKERS[id]));
+  if (!targets.length) return;
+  const next = {};
+  await pool(targets, 6, async (id) => {
+    const cs = parseCandles(await api(`/api/v5/market/candles?instId=${id}&bar=15m&limit=300`));
+    next[id] = analyzeWaves(cs, CFG.waveHours);
+  }, () => {});
+  Object.assign(WAVES, next);
+  const el = document.getElementById("wave-ts");
+  if (el) el.textContent = new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
+  render();
 }
 
 /* ── 실시간 ────────────────────────────────────────────────────── */
@@ -510,7 +591,8 @@ function compute(){
 function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
-                      mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years, rank:r.score }[key]);
+                      mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years,
+                      swings:r.swingsPerHour, dir:-r.directionality, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
     if (typeof x === "string") return dir * x.localeCompare(y);
@@ -533,7 +615,7 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="10" class="empty">${
+    tb.innerHTML = `<tr><td colspan="12" class="empty">${
       Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
     return;
@@ -550,6 +632,8 @@ function render(){
       <td class="sym">${r.sym}</td>
       <td><div class="scorebar"><span class="track"><i style="width:${r.score}%"></i></span>
         <b class="num">${r.score.toFixed(1)}</b></div></td>
+      <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
+      <td class="num ${r.directionality >= .13 ? "neg" : ""}">${r.directionality.toFixed(3)}</td>
       <td class="num ${flash}">${fmtPrice(r.last)}</td>
       <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
@@ -559,15 +643,19 @@ function render(){
       <td class="num">${r.years.toFixed(1)}y</td>
     </tr>`);
     if (isOpen){
-      html.push(`<tr class="detail"><td colspan="10">
+      html.push(`<tr class="detail"><td colspan="12">
         <div class="checks">${r.checks.map(c =>
           `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
            ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
         <div class="checks" style="margin-top:10px">
+          <span class="check">파동 <em>${r.parts.waves.toFixed(0)}</em></span>
+          <span class="check">파동 <em>${r.parts.waves.toFixed(0)}</em></span>
           <span class="check">변동성 <em>${r.parts.volatility.toFixed(0)}</em></span>
           <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
           <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
           <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
+          ${r.parts.oneway < -0.5 ? `<span class="check no"><span class="mark">!</span>원웨이 <em>${r.parts.oneway.toFixed(0)}</em></span>` : ""}
+          ${r.parts.oneway < -0.5 ? `<span class="check no"><span class="mark">!</span>원웨이 <em>${r.parts.oneway.toFixed(0)}</em></span>` : ""}
           ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
         </div></td></tr>`);
     }
@@ -609,6 +697,10 @@ bind("c-drop", "maxDrop", v => v / 100);
 bind("c-mode", "dropMode");
 bind("c-turnover", "minTurnover", v => v * 1e6);
 bind("c-interval", "interval");
+document.getElementById("c-wave").addEventListener("change", (e) => {
+  const v = parseFloat(e.target.value);
+  if (isFinite(v)) { CFG.waveHours = v; scanWaves(); }
+});
 
 document.getElementById("btn-rescan").addEventListener("click", () => fullScan(true));
 
