@@ -186,8 +186,6 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="rank">#</th>
         <th data-sort="sym">종목</th>
         <th data-sort="score">점수</th>
-        <th data-sort="swings">되돌림/h</th>
-        <th data-sort="dir">방향성</th>
         <th data-sort="last">현재가</th>
         <th data-sort="chg">24h</th>
         <th data-sort="range">전일 변동성</th>
@@ -195,8 +193,9 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="turnover">24h 거래대금</th>
         <th data-sort="drop">최대 하락</th>
         <th data-sort="years">차트</th>
+        <th data-sort="swings">되돌림/h</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="12" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="11" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
 
@@ -390,17 +389,15 @@ function judge(instId, mx, tk){
       detail:`${(turnover/1e6).toFixed(1)}M ≥ ${(CFG.minTurnover/1e6).toFixed(0)}M` },
   ];
 
-  // 점수 — 되돌림 빈도가 수익의 원천이므로 배점이 가장 크다
+  // 점수 — 거미줄매매를 걸 자리로서의 적합도
+  // 되돌림·방향성은 아래에서 화면 표시용으로만 쓰고 점수에는 넣지 않는다
+  // (참고 지표로만 두기로 한 사용자 결정, 2026-08-25)
   const w = WAVES[instId] || { swingsPerHour:0, directionality:0, pathPerHour:0, hours:0 };
-  const waves = scale(w.swingsPerHour, .5, 3.5);   // 3.5회/h = 2026-08-24 TRUMP 전승 세션 실측
   const volatility = scale(mx.rangePct, .10, .25);                 // 깔아둘 폭
   const trend = .5 * scale(midPct, 0, .15) + .5 * scale(mx.slope, -.03, .08);
   const liquidity = turnover > 0 ? scale(Math.pow(turnover/3e6, .35), 1, Math.pow(200/3, .35)) : 0;
   const stability = 1 - scale(drop.v, .15, .50);
-  let total = (waves*.35 + volatility*.20 + liquidity*.20 + stability*.15 + trend*.10) * 100;
-  // 원웨이 감점: 방향성 0.05 이하 무감점, 0.18 이상 최대 25점
-  const oneway = scale(w.directionality, .05, .18) * 25;
-  if (oneway > 0) total -= oneway;
+  let total = (volatility*.30 + trend*.30 + liquidity*.25 + stability*.15) * 100;
   const overheat = mx.bbUpper != null && last > mx.bbUpper;
   if (overheat) total -= 12;                                        // 볼린저 상단 밖 = 과열
 
@@ -408,8 +405,8 @@ function judge(instId, mx, tk){
     instId, sym: instId.replace("-USDT-SWAP",""),
     passed: checks.every(c => c.ok), checks,
     score: Math.max(0, Math.min(100, Math.round(total*10)/10)),
-    parts:{ waves:waves*100, volatility:volatility*100, trend:trend*100,
-            liquidity:liquidity*100, stability:stability*100, oneway:-oneway, overheat },
+    parts:{ volatility:volatility*100, trend:trend*100,
+            liquidity:liquidity*100, stability:stability*100, overheat },
     last, chg, turnover, midPct, range: mx.rangePct, drop: drop.v, years: mx.years,
     swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
   };
@@ -592,7 +589,7 @@ function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
                       mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years,
-                      swings:r.swingsPerHour, dir:-r.directionality, rank:r.score }[key]);
+                      swings:r.swingsPerHour, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
     if (typeof x === "string") return dir * x.localeCompare(y);
@@ -615,7 +612,7 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="12" class="empty">${
+    tb.innerHTML = `<tr><td colspan="11" class="empty">${
       Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
     return;
@@ -632,8 +629,6 @@ function render(){
       <td class="sym">${r.sym}</td>
       <td><div class="scorebar"><span class="track"><i style="width:${r.score}%"></i></span>
         <b class="num">${r.score.toFixed(1)}</b></div></td>
-      <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
-      <td class="num ${r.directionality >= .13 ? "neg" : ""}">${r.directionality.toFixed(3)}</td>
       <td class="num ${flash}">${fmtPrice(r.last)}</td>
       <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
@@ -641,21 +636,20 @@ function render(){
       <td class="num">${(r.turnover / 1e6).toFixed(1)}M</td>
       <td class="num">${(r.drop * 100).toFixed(0)}%</td>
       <td class="num">${r.years.toFixed(1)}y</td>
+      <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
     </tr>`);
     if (isOpen){
-      html.push(`<tr class="detail"><td colspan="12">
+      html.push(`<tr class="detail"><td colspan="11">
         <div class="checks">${r.checks.map(c =>
           `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
            ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
         <div class="checks" style="margin-top:10px">
           <span class="check">파동 <em>${r.parts.waves.toFixed(0)}</em></span>
-          <span class="check">파동 <em>${r.parts.waves.toFixed(0)}</em></span>
           <span class="check">변동성 <em>${r.parts.volatility.toFixed(0)}</em></span>
           <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
           <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
           <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
-          ${r.parts.oneway < -0.5 ? `<span class="check no"><span class="mark">!</span>원웨이 <em>${r.parts.oneway.toFixed(0)}</em></span>` : ""}
-          ${r.parts.oneway < -0.5 ? `<span class="check no"><span class="mark">!</span>원웨이 <em>${r.parts.oneway.toFixed(0)}</em></span>` : ""}
+          <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)}</em></span>
           ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
         </div></td></tr>`);
     }
