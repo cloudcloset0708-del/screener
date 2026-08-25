@@ -118,6 +118,11 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
 .check.ok .mark{color:var(--gain)} .check.no .mark{color:var(--loss)}
 .check em{font-style:normal;color:var(--ink-3);font-family:"JetBrains Mono",monospace;font-size:11px}
 
+.bias{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;
+  border:1px solid transparent;letter-spacing:-.01em}
+.bias.long{color:var(--gain);background:rgba(47,208,138,.12);border-color:rgba(47,208,138,.3)}
+.bias.short{color:var(--loss);background:rgba(242,96,92,.12);border-color:rgba(242,96,92,.3)}
+.bias.flat{color:var(--ink-3);background:rgba(255,255,255,.05);border-color:var(--edge)}
 .empty{padding:56px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
 .note{font-size:12px;color:var(--ink-3);line-height:1.7;margin-top:14px}
 .note code{font-family:"JetBrains Mono",monospace;font-size:11px;background:rgba(255,255,255,.055);
@@ -154,6 +159,8 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
   <section class="controls">
     <div class="ctl"><label for="c-range">전일봉 변동성 하한 (%)</label>
       <input type="number" id="c-range" value="10" step="0.5" min="0"></div>
+    <div class="ctl"><label for="c-gain">전일 상승률 상한 (%)</label>
+      <input type="number" id="c-gain" value="50" step="5" min="0"></div>
     <div class="ctl"><label for="c-years">차트 기간 하한 (년)</label>
       <input type="number" id="c-years" value="1" step="0.5" min="0"></div>
     <div class="ctl"><label for="c-drop">하락폭 상한 (%)</label>
@@ -186,6 +193,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="rank">#</th>
         <th data-sort="sym">종목</th>
         <th data-sort="score">점수</th>
+        <th data-sort="bias">추천</th>
         <th data-sort="last">현재가</th>
         <th data-sort="chg">24h</th>
         <th data-sort="range">전일 변동성</th>
@@ -195,7 +203,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="years">차트</th>
         <th data-sort="swings">되돌림/h</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="11" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="12" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
 
@@ -215,11 +223,11 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
    ══════════════════════════════════════════════════════════════════ */
 
 const API = "https://www.okx.com";
-const CACHE_KEY = "idea-screener-scan-v1";
+const CACHE_KEY = "idea-screener-scan-v2";
 const DAY_MS = 86400000;
 
 const CFG = { minRange:.10, minYears:1, maxDrop:.50, dropMode:"body", minTurnover:3e6,
-              bbPeriod:20, interval:3, waveHours:6, minSwings:0 };
+              bbPeriod:20, interval:3, waveHours:6, minSwings:0, maxDayGain:.50 };
 
 let INSTRUMENTS = [];        // [{instId, ctVal}]
 let METRICS = {};            // instId -> 일/주/월봉에서 뽑은 정적 지표 (하루 1회 갱신)
@@ -294,18 +302,48 @@ function countSwings(cs, amp){
 }
 
 function analyzeWaves(cs, hours){
-  if (cs.length < 8) return { hours:0, swingsPerHour:0, directionality:0, pathPerHour:0 };
+  if (cs.length < 8) return { hours:0, swingsPerHour:0, directionality:0, pathPerHour:0,
+                              netPct:0, bbPos:0.5, bias:{score:0,label:"—",reason:""} };
   const win = cs.slice(-Math.max(8, Math.round(hours * 4)));
   const span = win.length * 0.25;
   const path = win.reduce((s,x) => s + (x.l ? (x.h - x.l) / x.l * 100 : 0), 0);
   const first = win[0].o || win[0].c;
   const net = first ? (win[win.length-1].c - first) / first * 100 : 0;
-  return {
-    hours: span,
-    swingsPerHour: countSwings(win, WAVE_AMP) / span,
-    directionality: path ? Math.abs(net) / path : 0,
-    pathPerHour: path / span,
-  };
+
+  // 15분봉 볼린저 밴드 내 위치 (최근 20봉)
+  let bbPos = 0.5;
+  const tail = cs.slice(-20);
+  if (tail.length >= 20){
+    const m = tail.reduce((a,x)=>a+x.c,0) / tail.length;
+    const sd = Math.sqrt(tail.reduce((a,x)=>a+(x.c-m)**2,0) / tail.length);
+    if (sd > 0) bbPos = Math.min(1, Math.max(0, (cs[cs.length-1].c - (m-2*sd)) / (4*sd)));
+  }
+  const w = { hours: span, swingsPerHour: countSwings(win, WAVE_AMP) / span,
+              directionality: path ? Math.abs(net) / path : 0,
+              pathPerHour: path / span, netPct: net, bbPos };
+  w.bias = judgeBias(w);
+  return w;
+}
+
+/* 롱/숏 편향 판정 (-100 숏 ~ +100 롱)
+   · 원웨이 구간(방향성 높음) — 추세를 거스르면 죽는다. 하락 원웨이에서 롱 사다리를
+     깔면 매수만 체결되고 익절이 안 걸린다. 2026-08-24 ZRO 가 그랬다.
+   · 오르내림 구간(방향성 낮음) — 밴드 하단이면 롱, 상단이면 숏.
+   방향성 0.05 → 0.13 사이에서 두 성격의 비중이 넘어간다. */
+function judgeBias(w){
+  if (!w.hours) return { score:0, label:"—", reason:"" };
+  let t = (w.directionality - .05) / .08;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const trend = (w.netPct >= 0 ? 1 : -1) * Math.min(1, Math.abs(w.netPct) / 3) * 100;
+  const meanRev = (0.5 - w.bbPos) * 2 * 100;
+  const score = t * trend + (1 - t) * meanRev;
+  const label = score >= 40 ? "롱" : score >= 15 ? "롱우위"
+              : score > -15 ? "중립" : score > -40 ? "숏우위" : "숏";
+  let reason;
+  if (t >= .6) reason = `원웨이 ${w.netPct >= 0 ? "상승" : "하락"} ${Math.abs(w.netPct).toFixed(1)}% · 추세 추종`;
+  else if (t <= .2) reason = `오르내림 · 밴드 ${w.bbPos < .35 ? "하단" : w.bbPos > .65 ? "상단" : "중앙"}(${(w.bbPos*100).toFixed(0)}%)`;
+  else reason = `추세·되돌림 혼재 (방향성 ${w.directionality.toFixed(2)})`;
+  return { score: Math.round(score*10)/10, label, reason };
 }
 
 function maxDrawdown(cs){
@@ -347,6 +385,7 @@ async function scanSymbol(instId){
 
   return {
     rangePct: prev.l ? (prev.h - prev.l) / prev.l : 0,   // 조건1: 전일봉 (고-저)/저
+    prevDayGain: prev.o ? (prev.c - prev.o) / prev.o : 0, // 전일봉 상승률 (시가→종가)
     years: (Date.now() - oldest) / DAY_MS / 365,         // 조건2
     dropWick: Math.max(wk, mo),                          // 조건3 (봉 전체)
     dropBody: Math.max(wkB, moB),                        // 조건3 (몸통)
@@ -378,6 +417,8 @@ function judge(instId, mx, tk){
   const checks = [
     { name:"변동성",  ok: mx.rangePct >= CFG.minRange,
       detail:`${(mx.rangePct*100).toFixed(2)}% ≥ ${(CFG.minRange*100).toFixed(0)}%` },
+    { name:"급등", ok: (mx.prevDayGain ?? 0) < CFG.maxDayGain,
+      detail:`전일 ${((mx.prevDayGain ?? 0)*100).toFixed(1)}% < ${(CFG.maxDayGain*100).toFixed(0)}%` },
     { name:"차트기간", ok: mx.years >= CFG.minYears,
       detail:`${mx.years.toFixed(1)}년 ≥ ${CFG.minYears}년` },
     { name:"하락폭",  ok: drop.v <= CFG.maxDrop,
@@ -409,6 +450,7 @@ function judge(instId, mx, tk){
             liquidity:liquidity*100, stability:stability*100, overheat },
     last, chg, turnover, midPct, range: mx.rangePct, drop: drop.v, years: mx.years,
     swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
+    bias: w.bias || { score:0, label:"—", reason:"" }, bbPos: w.bbPos ?? 0.5,
   };
 }
 
@@ -521,7 +563,8 @@ let waveTimer = null;
 function passesStatic(instId, mx, tk){
   const last = +tk.last || mx.dailyClose;
   const turnover = (+tk.volCcy24h || 0) * last;
-  return mx.rangePct >= CFG.minRange && mx.years >= CFG.minYears &&
+  return mx.rangePct >= CFG.minRange && (mx.prevDayGain ?? 0) < CFG.maxDayGain &&
+         mx.years >= CFG.minYears &&
          dropOf(mx, last).v <= CFG.maxDrop && mx.bbMid != null && last > mx.bbMid &&
          turnover >= CFG.minTurnover;
 }
@@ -589,7 +632,7 @@ function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
                       mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years,
-                      swings:r.swingsPerHour, rank:r.score }[key]);
+                      swings:r.swingsPerHour, bias:r.bias.score, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
     if (typeof x === "string") return dir * x.localeCompare(y);
@@ -612,7 +655,7 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="11" class="empty">${
+    tb.innerHTML = `<tr><td colspan="12" class="empty">${
       Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
     return;
@@ -629,6 +672,7 @@ function render(){
       <td class="sym">${r.sym}</td>
       <td><div class="scorebar"><span class="track"><i style="width:${r.score}%"></i></span>
         <b class="num">${r.score.toFixed(1)}</b></div></td>
+      <td><span class="bias ${r.bias.score >= 15 ? "long" : r.bias.score <= -15 ? "short" : "flat"}">${r.bias.label}</span></td>
       <td class="num ${flash}">${fmtPrice(r.last)}</td>
       <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
@@ -639,7 +683,7 @@ function render(){
       <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
     </tr>`);
     if (isOpen){
-      html.push(`<tr class="detail"><td colspan="11">
+      html.push(`<tr class="detail"><td colspan="12">
         <div class="checks">${r.checks.map(c =>
           `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
            ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
@@ -649,7 +693,8 @@ function render(){
           <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
           <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
           <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
-          <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)}</em></span>
+          <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)} · 밴드 ${(r.bbPos*100).toFixed(0)}%</em></span>
+          <span class="check ${r.bias.score >= 15 ? "ok" : r.bias.score <= -15 ? "no" : ""}">추천 <em>${r.bias.label} (${r.bias.score >= 0 ? "+" : ""}${r.bias.score}) · ${r.bias.reason}</em></span>
           ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
         </div></td></tr>`);
     }
@@ -687,6 +732,7 @@ const bind = (id, key, transform) => {
 };
 bind("c-range", "minRange", v => v / 100);
 bind("c-years", "minYears");
+bind("c-gain", "maxDayGain", v => v / 100);
 bind("c-drop", "maxDrop", v => v / 100);
 bind("c-mode", "dropMode");
 bind("c-turnover", "minTurnover", v => v * 1e6);
@@ -708,7 +754,7 @@ document.getElementById("btn-copy").addEventListener("click", async (e) => {
   if (!ROWS.length) lines.push("조건을 통과한 종목이 없습니다.");
   else ROWS.slice(0,5).forEach((r,i) => {
     lines.push(`${i+1}. ${r.sym}  ${r.score.toFixed(0)}점`);
-    lines.push(`   변동성 ${(r.range*100).toFixed(1)}% · 20일선 ${pct(r.midPct).replace("−","-")} · ${(r.turnover/1e6).toFixed(0)}M`);
+    lines.push(`   ${r.bias.label} · 변동성 ${(r.range*100).toFixed(1)}% · 되돌림 ${r.swingsPerHour.toFixed(1)}회/h`);
   });
   lines.push(bar, "", "— IDEA Lab");
   const text = lines.join("\n");
