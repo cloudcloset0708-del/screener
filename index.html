@@ -123,6 +123,17 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
 .bias.long{color:var(--gain);background:rgba(47,208,138,.12);border-color:rgba(47,208,138,.3)}
 .bias.short{color:var(--loss);background:rgba(242,96,92,.12);border-color:rgba(242,96,92,.3)}
 .bias.flat{color:var(--ink-3);background:rgba(255,255,255,.05);border-color:var(--edge)}
+/* 펀딩비 섹션 */
+.fund-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:900px){.fund-wrap{grid-template-columns:1fr}}
+.fund-box{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);overflow:hidden}
+.fund-box h3{margin:0;padding:12px 15px;font-size:12.5px;font-weight:600;
+  border-bottom:1px solid var(--edge);background:rgba(255,255,255,.02)}
+.fund-box h3 small{display:block;font-size:11px;font-weight:400;color:var(--ink-3);margin-top:3px}
+.fund-box h3.long{color:var(--gain)} .fund-box h3.short{color:var(--loss)}
+.fund-box table{min-width:0}
+.fund-box td,.fund-box th{padding:8px 12px;font-size:12px}
+.fund-hint{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.7}
 .empty{padding:56px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
 .note{font-size:12px;color:var(--ink-3);line-height:1.7;margin-top:14px}
 .note code{font-family:"JetBrains Mono",monospace;font-size:11px;background:rgba(255,255,255,.055);
@@ -193,10 +204,41 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="move">1년 최대등락</th>
         <th data-sort="years">차트</th>
         <th data-sort="swings">되돌림/h</th>
+        <th data-sort="fund">펀딩/일</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="12" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="13" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
+
+  <section id="funding-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <h2>펀딩비 순위</h2>
+      <p id="fund-meta">불러오지 않음</p>
+    </div>
+    <div class="btn-row" style="margin-bottom:13px">
+      <button type="button" id="btn-fund">펀딩비 새로고침</button>
+    </div>
+    <div class="fund-wrap">
+      <div class="fund-box">
+        <h3 class="long">▼ 펀딩 음수 · 롱 유리<small>숏이 지불 = 숏 과밀</small></h3>
+        <div class="table-scroll" style="border:0;background:transparent">
+          <table><tbody id="fund-neg"><tr><td class="empty">—</td></tr></tbody></table>
+        </div>
+      </div>
+      <div class="fund-box">
+        <h3 class="short">▲ 펀딩 양수 · 숏 유리<small>롱이 지불 = 롱 과밀</small></h3>
+        <div class="table-scroll" style="border:0;background:transparent">
+          <table><tbody id="fund-pos"><tr><td class="empty">—</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+    <p class="fund-hint">
+      OKX는 종목마다 정산 주기가 다릅니다(<b>2·4·8시간</b>). 같은 −0.1%라도 2시간 주기면
+      8시간 주기의 <b>4배</b>로 부담이 쌓이므로 <b>하루 환산</b>으로 줄을 세웁니다 —
+      <code>펀딩률 × (24 ÷ 주기)</code>. <b>주기가 짧을수록 자동으로 강하게</b> 잡힙니다.<br>
+      <b>한계</b>는 주기당 상·하한(대부분 ±1%) 대비 현재 수준입니다. 100%에 가까울수록 극단입니다.
+    </p>
+  </section>
 
   <p class="note">
     행을 클릭하면 조건별 통과·탈락 사유가 펼쳐집니다. 헤더를 클릭하면 정렬됩니다.<br>
@@ -450,6 +492,7 @@ function judge(instId, mx, tk){
     maxMove1y: mx.maxMove1y ?? 0,
     swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
     bias: w.bias || { score:0, label:"—", reason:"" }, bbPos: w.bbPos ?? 0.5,
+    fund: FUNDMAP[instId] || null,
   };
 }
 
@@ -543,6 +586,11 @@ async function fullScan(force){
     scanWaves();
     if (waveTimer) clearInterval(waveTimer);
     waveTimer = setInterval(() => { if (!document.hidden) scanWaves(); }, 5 * 60 * 1000);
+
+    refreshPassFunding();                       // 통과 종목 펀딩 즉시 반영
+    if (fundFastTimer) clearInterval(fundFastTimer);
+    fundFastTimer = setInterval(() => { if (!document.hidden) refreshPassFunding(); }, 60 * 1000);
+    loadFunding();                              // 전 시장 순위표도 자동으로
   }catch(err){
     // 일시적인 연결 끊김이 잦다. 조용히 한 번 더 시도한 뒤에도 실패하면 알린다.
     if (!force && !fullScan._retried){
@@ -639,7 +687,8 @@ function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
                       mid:r.midPct, turnover:r.turnover, drop:-r.drop, move:-r.maxMove1y, years:r.years,
-                      swings:r.swingsPerHour, bias:r.bias.score, rank:r.score }[key]);
+                      swings:r.swingsPerHour, bias:r.bias.score,
+                      fund: r.fund ? r.fund.daily : 0, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
     if (typeof x === "string") return dir * x.localeCompare(y);
@@ -662,7 +711,7 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="12" class="empty">${
+    tb.innerHTML = `<tr><td colspan="13" class="empty">${
       Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
     return;
@@ -688,9 +737,12 @@ function render(){
       <td class="num">${(r.maxMove1y * 100).toFixed(1)}%</td>
       <td class="num">${r.years.toFixed(1)}y</td>
       <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
+      <td class="num ${r.fund ? (r.fund.daily < 0 ? "pos" : "neg") : ""}" title="${
+        r.fund ? `${(r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 · 한계 ${(r.fund.capPct*100).toFixed(0)}%` : ""}">${
+        r.fund ? (r.fund.daily*100).toFixed(2) + "%" : "—"}</td>
     </tr>`);
     if (isOpen){
-      html.push(`<tr class="detail"><td colspan="12">
+      html.push(`<tr class="detail"><td colspan="13">
         <div class="checks">${r.checks.map(c =>
           `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
            ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
@@ -701,6 +753,9 @@ function render(){
           <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
           <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
           <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)} · 밴드 ${(r.bbPos*100).toFixed(0)}%</em></span>
+          ${r.fund ? `<span class="check ${r.fund.daily < 0 ? "ok" : "no"}">펀딩 <em>${
+            (r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 → 하루 ${(r.fund.daily*100).toFixed(2)}% · ${
+            r.fund.daily < 0 ? "숏이 지불(롱 유리)" : "롱이 지불(숏 유리)"}</em></span>` : ""}
           <span class="check ${r.bias.score >= 15 ? "ok" : r.bias.score <= -15 ? "no" : ""}">추천 <em>${r.bias.label} (${r.bias.score >= 0 ? "+" : ""}${r.bias.score}) · ${r.bias.reason}</em></span>
           ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
         </div></td></tr>`);
@@ -708,6 +763,122 @@ function render(){
   });
   tb.innerHTML = html.join("");
 }
+
+/* ── 펀딩비 ────────────────────────────────────────────────────────── */
+/* 음수 = 숏이 롱에게 지불 = 숏 과밀 = 롱 유리.
+   일괄 조회 엔드포인트가 없어 종목별로 받아야 한다. 거래대금이 바닥인
+   종목은 어차피 거래할 수 없으므로 먼저 걸러 요청 수를 줄인다. */
+let FUNDING = [];        // 전 시장 펀딩 순위용 (5분)
+let FUNDMAP = {};        // instId -> 펀딩 (메인 표용, 60초)
+let fundTimer = null;
+let fundFastTimer = null;
+
+/* 펀딩률은 정산 때만이 아니라 프리미엄을 따라 계속 움직인다.
+   통과 종목(15개 안팎)만 60초마다 다시 받아 메인 표에 바로 반영한다.
+   전 시장 순위표는 요청이 150건이라 5분 주기로 따로 돈다. */
+function fundOf(rows){
+  const out = {};
+  for (const f of rows) out[f.sym + "-USDT-SWAP"] = f;
+  return out;
+}
+
+async function parseFunding(id){
+  const d = await api(`/api/v5/public/funding-rate?instId=${id}`);
+  const r = d[0]; if (!r) return null;
+  const hrs = (+r.nextFundingTime - +r.fundingTime) / 3600000;
+  if (!(hrs > 0)) return null;
+  const t = TICKERS[id] || {};
+  const rate = +r.fundingRate;
+  const floor = +(r.minFundingRate || -.01), cap = +(r.maxFundingRate || .01);
+  return { sym:id.replace("-USDT-SWAP",""), rate, hrs, next:+r.nextFundingTime,
+           cap, floor, daily: rate * (24 / hrs),
+           capPct: Math.min(1, Math.abs(rate) / Math.abs(rate < 0 ? floor : cap)),
+           turnover:(+t.volCcy24h || 0) * (+t.last || 0) };
+}
+
+async function refreshPassFunding(){
+  const targets = Object.keys(METRICS)
+    .filter(id => TICKERS[id] && passesStatic(id, METRICS[id], TICKERS[id]));
+  if (!targets.length) return;
+  const next = {};
+  await pool(targets, 6, async (id) => {
+    const f = await parseFunding(id);
+    if (f) next[id] = f;
+  }, () => {});
+  Object.assign(FUNDMAP, next);
+  render();
+}
+
+async function loadFunding(){
+  const btn = document.getElementById("btn-fund");
+  btn.disabled = true; btn.textContent = "불러오는 중…";
+  const meta = document.getElementById("fund-meta");
+  try{
+    const targets = Object.keys(TICKERS).filter(id => {
+      const t = TICKERS[id];
+      return id.endsWith("-USDT-SWAP") && (+t.volCcy24h || 0) * (+t.last || 0) >= CFG.minTurnover;
+    });
+    const out = [];
+    let done = 0;
+    await pool(targets, 6, async (id) => {
+      const d = await api(`/api/v5/public/funding-rate?instId=${id}`);
+      const r = d[0]; if (!r) return;
+      const hrs = (+r.nextFundingTime - +r.fundingTime) / 3600000;
+      if (!(hrs > 0)) return;
+      const t = TICKERS[id];
+      out.push({
+        sym: id.replace("-USDT-SWAP",""),
+        rate: +r.fundingRate, hrs, next: +r.nextFundingTime,
+        cap: +(r.maxFundingRate || .01), floor: +(r.minFundingRate || -.01),
+        turnover: (+t.volCcy24h || 0) * (+t.last || 0),
+      });
+    }, () => { if (++done % 20 === 0) meta.textContent = `${done} / ${targets.length}종목`; });
+    out.forEach(f => {
+      f.daily = f.rate * (24 / f.hrs);
+      f.capPct = Math.min(1, Math.abs(f.rate) / Math.abs(f.rate < 0 ? f.floor : f.cap));
+    });
+    FUNDING = out;
+    Object.assign(FUNDMAP, fundOf(out));
+    renderFunding();
+    render();
+    if (fundTimer) clearInterval(fundTimer);
+    fundTimer = setInterval(() => { if (!document.hidden) loadFunding(); }, 5 * 60 * 1000);
+  }catch(err){
+    meta.textContent = "불러오지 못했습니다 — 다시 눌러 주세요";
+  }finally{
+    btn.disabled = false; btn.textContent = "펀딩비 새로고침";
+  }
+}
+
+function renderFunding(){
+  const fmtNext = (ms) => {
+    const m = Math.max(0, (ms - Date.now()) / 60000);
+    return m >= 60 ? `${Math.floor(m/60)}시간 ${String(Math.floor(m%60)).padStart(2,"0")}분` : `${Math.floor(m)}분`;
+  };
+  const row = (f) => `<tr>
+      <td class="sym">${f.sym}</td>
+      <td class="num ${f.daily < 0 ? "pos" : "neg"}">${(f.daily*100).toFixed(2)}%</td>
+      <td class="num">${(f.rate*100).toFixed(4)}%</td>
+      <td class="num">${f.hrs.toFixed(0)}h</td>
+      <td class="num">${(f.capPct*100).toFixed(0)}%</td>
+      <td class="num">${fmtNext(f.next)}</td>
+      <td class="num">${(f.turnover/1e6).toFixed(1)}M</td>
+    </tr>`;
+  const head = `<tr>
+      <th>종목</th><th>하루환산</th><th>펀딩률</th><th>주기</th><th>한계</th><th>다음정산</th><th>거래대금</th>
+    </tr>`;
+  const neg = FUNDING.filter(f => f.daily < 0).sort((a,b) => a.daily - b.daily).slice(0,15);
+  const pos = FUNDING.filter(f => f.daily > 0).sort((a,b) => b.daily - a.daily).slice(0,15);
+  document.getElementById("fund-neg").innerHTML = head + (neg.map(row).join("") || `<tr><td colspan="7" class="empty">없음</td></tr>`);
+  document.getElementById("fund-pos").innerHTML = head + (pos.map(row).join("") || `<tr><td colspan="7" class="empty">없음</td></tr>`);
+  const iv = {};
+  FUNDING.forEach(f => iv[f.hrs] = (iv[f.hrs]||0)+1);
+  document.getElementById("fund-meta").textContent =
+    `${FUNDING.length}종목 · ` + Object.keys(iv).sort((a,b)=>a-b).map(h => `${h}시간 ${iv[h]}`).join(" · ") +
+    ` · ${new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`;
+}
+
+document.getElementById("btn-fund").addEventListener("click", loadFunding);
 
 /* ── 이벤트 ────────────────────────────────────────────────────── */
 document.getElementById("tbody").addEventListener("click", (e) => {
