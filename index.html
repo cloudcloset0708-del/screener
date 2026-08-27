@@ -159,19 +159,10 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
   <section class="controls">
     <div class="ctl"><label for="c-range">전일봉 변동성 하한 (%)</label>
       <input type="number" id="c-range" value="10" step="0.5" min="0"></div>
-    <div class="ctl"><label for="c-gain">전일 상승률 상한 (%)</label>
-      <input type="number" id="c-gain" value="50" step="5" min="0"></div>
     <div class="ctl"><label for="c-years">차트 기간 하한 (년)</label>
       <input type="number" id="c-years" value="1" step="0.5" min="0"></div>
-    <div class="ctl"><label for="c-drop">하락폭 상한 (%)</label>
-      <input type="number" id="c-drop" value="50" step="5" min="0"></div>
-    <div class="ctl"><label for="c-mode">하락폭 해석</label>
-      <select id="c-mode">
-        <option value="body">봉 몸통 (시가→종가)</option>
-        <option value="wick">봉 전체 (고가→저가)</option>
-        <option value="mdd">전 구간 최대낙폭</option>
-        <option value="ath">전고점 대비 현재</option>
-      </select></div>
+    <div class="ctl"><label for="c-move">1년내 하루 등락 상한 (%)</label>
+      <input type="number" id="c-move" value="40" step="5" min="0"></div>
     <div class="ctl"><label for="c-turnover">24h 거래대금 하한 (백만)</label>
       <input type="number" id="c-turnover" value="3" step="1" min="0"></div>
     <div class="ctl"><label for="c-wave">파동 관측 구간 (시간)</label>
@@ -199,7 +190,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="range">전일 변동성</th>
         <th data-sort="mid">20일선 대비</th>
         <th data-sort="turnover">24h 거래대금</th>
-        <th data-sort="drop">최대 하락</th>
+        <th data-sort="move">1년 최대등락</th>
         <th data-sort="years">차트</th>
         <th data-sort="swings">되돌림/h</th>
       </tr></thead>
@@ -223,11 +214,11 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
    ══════════════════════════════════════════════════════════════════ */
 
 const API = "https://www.okx.com";
-const CACHE_KEY = "idea-screener-scan-v2";
+const CACHE_KEY = "idea-screener-scan-v3";
 const DAY_MS = 86400000;
 
-const CFG = { minRange:.10, minYears:1, maxDrop:.50, dropMode:"body", minTurnover:3e6,
-              bbPeriod:20, interval:3, waveHours:6, minSwings:0, maxDayGain:.50 };
+const CFG = { minRange:.10, minYears:1, maxMove:.40, dropMode:"body", minTurnover:3e6,
+              bbPeriod:20, interval:3, waveHours:6, minSwings:0 };
 
 let INSTRUMENTS = [];        // [{instId, ctVal}]
 let METRICS = {};            // instId -> 일/주/월봉에서 뽑은 정적 지표 (하루 1회 갱신)
@@ -385,7 +376,16 @@ async function scanSymbol(instId){
 
   return {
     rangePct: prev.l ? (prev.h - prev.l) / prev.l : 0,   // 조건1: 전일봉 (고-저)/저
-    prevDayGain: prev.o ? (prev.c - prev.o) / prev.o : 0, // 전일봉 상승률 (시가→종가)
+    prevDayGain: prev.o ? (prev.c - prev.o) / prev.o : 0, // 전일봉 상승률 (참고)
+    // 최근 1년 안에 하루 ±N% 이상 움직인 적이 있는가.
+    // 하루에 40% 뛰거나 빠지는 종목은 가격 범위에 물량을 까는 방식과 맞지 않는다.
+    maxMove1y: (() => {
+      const cut = Date.now() - 365 * DAY_MS;
+      let w = 0;
+      for (const c of d) if (c.ts >= cut && c.o) w = Math.max(w, Math.abs((c.c - c.o) / c.o));
+      return w;
+    })(),
+    yearBars: d.filter(c => c.ts >= Date.now() - 365 * DAY_MS).length,
     years: (Date.now() - oldest) / DAY_MS / 365,         // 조건2
     dropWick: Math.max(wk, mo),                          // 조건3 (봉 전체)
     dropBody: Math.max(wkB, moB),                        // 조건3 (몸통)
@@ -417,12 +417,10 @@ function judge(instId, mx, tk){
   const checks = [
     { name:"변동성",  ok: mx.rangePct >= CFG.minRange,
       detail:`${(mx.rangePct*100).toFixed(2)}% ≥ ${(CFG.minRange*100).toFixed(0)}%` },
-    { name:"급등", ok: (mx.prevDayGain ?? 0) < CFG.maxDayGain,
-      detail:`전일 ${((mx.prevDayGain ?? 0)*100).toFixed(1)}% < ${(CFG.maxDayGain*100).toFixed(0)}%` },
     { name:"차트기간", ok: mx.years >= CFG.minYears,
       detail:`${mx.years.toFixed(1)}년 ≥ ${CFG.minYears}년` },
-    { name:"하락폭",  ok: drop.v <= CFG.maxDrop,
-      detail:`${drop.label} ≤ ${(CFG.maxDrop*100).toFixed(0)}%` },
+    { name:"급변",   ok: (mx.maxMove1y ?? 0) < CFG.maxMove,
+      detail:`1년 내 최대 ${((mx.maxMove1y ?? 0)*100).toFixed(1)}% < ${(CFG.maxMove*100).toFixed(0)}% (일봉 ${mx.yearBars ?? 0}개)` },
     { name:"20일선",  ok: mx.bbMid != null && last > mx.bbMid,
       detail: mx.bbMid == null ? "일봉 20개 미만"
         : `${last.toPrecision(6)} vs ${mx.bbMid.toPrecision(6)} (${(midPct*100).toFixed(2)}%)` },
@@ -449,6 +447,7 @@ function judge(instId, mx, tk){
     parts:{ volatility:volatility*100, trend:trend*100,
             liquidity:liquidity*100, stability:stability*100, overheat },
     last, chg, turnover, midPct, range: mx.rangePct, drop: drop.v, years: mx.years,
+    maxMove1y: mx.maxMove1y ?? 0,
     swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
     bias: w.bias || { score:0, label:"—", reason:"" }, bbPos: w.bbPos ?? 0.5,
   };
@@ -545,6 +544,15 @@ async function fullScan(force){
     if (waveTimer) clearInterval(waveTimer);
     waveTimer = setInterval(() => { if (!document.hidden) scanWaves(); }, 5 * 60 * 1000);
   }catch(err){
+    // 일시적인 연결 끊김이 잦다. 조용히 한 번 더 시도한 뒤에도 실패하면 알린다.
+    if (!force && !fullScan._retried){
+      fullScan._retried = true;
+      setProgress(4, "연결이 끊겨 다시 시도합니다…", "잠시만 기다려 주세요");
+      scanning = false;
+      document.getElementById("btn-rescan").disabled = false;
+      setTimeout(() => fullScan(false), 4000);
+      return;
+    }
     showError(`OKX 연결에 실패했습니다: ${err.message}<br>
       네트워크를 확인하고 <b>다시 스캔</b>을 눌러 주세요. 회사·학교 네트워크나 일부 국가에서는 거래소 접속이 막혀 있을 수 있습니다.`);
     setProgress(0, "스캔 실패", "다시 스캔을 눌러 주세요");
@@ -563,9 +571,8 @@ let waveTimer = null;
 function passesStatic(instId, mx, tk){
   const last = +tk.last || mx.dailyClose;
   const turnover = (+tk.volCcy24h || 0) * last;
-  return mx.rangePct >= CFG.minRange && (mx.prevDayGain ?? 0) < CFG.maxDayGain &&
-         mx.years >= CFG.minYears &&
-         dropOf(mx, last).v <= CFG.maxDrop && mx.bbMid != null && last > mx.bbMid &&
+  return mx.rangePct >= CFG.minRange && (mx.maxMove1y ?? 0) < CFG.maxMove &&
+         mx.years >= CFG.minYears && mx.bbMid != null && last > mx.bbMid &&
          turnover >= CFG.minTurnover;
 }
 
@@ -631,7 +638,7 @@ function compute(){
 function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
-                      mid:r.midPct, turnover:r.turnover, drop:-r.drop, years:r.years,
+                      mid:r.midPct, turnover:r.turnover, drop:-r.drop, move:-r.maxMove1y, years:r.years,
                       swings:r.swingsPerHour, bias:r.bias.score, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
@@ -678,7 +685,7 @@ function render(){
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
       <td class="num ${cls(r.midPct)}">${pct(r.midPct)}</td>
       <td class="num">${(r.turnover / 1e6).toFixed(1)}M</td>
-      <td class="num">${(r.drop * 100).toFixed(0)}%</td>
+      <td class="num">${(r.maxMove1y * 100).toFixed(1)}%</td>
       <td class="num">${r.years.toFixed(1)}y</td>
       <td class="num ${r.swingsPerHour >= 2 ? "pos" : r.swingsPerHour < 1 ? "neg" : ""}">${r.swingsPerHour.toFixed(1)}</td>
     </tr>`);
@@ -732,9 +739,7 @@ const bind = (id, key, transform) => {
 };
 bind("c-range", "minRange", v => v / 100);
 bind("c-years", "minYears");
-bind("c-gain", "maxDayGain", v => v / 100);
-bind("c-drop", "maxDrop", v => v / 100);
-bind("c-mode", "dropMode");
+bind("c-move", "maxMove", v => v / 100);
 bind("c-turnover", "minTurnover", v => v * 1e6);
 bind("c-interval", "interval");
 document.getElementById("c-wave").addEventListener("change", (e) => {
