@@ -11,7 +11,7 @@
 :root{
   --ground:#0A0C11; --panel:rgba(255,255,255,.028); --panel-2:rgba(255,255,255,.05);
   --edge:rgba(255,255,255,.075); --edge-2:rgba(255,255,255,.14);
-  --ink:#F0F2F7; --ink-2:#A6ADBD; --ink-3:#6A7283;
+  --ink:#F2F4F9; --ink-2:#B4BBCB; --ink-3:#828B9E;
   --accent:#8B7CFF; --accent-2:#B4A9FF; --accent-dim:rgba(139,124,255,.14);
   --gain:#2FD08A; --loss:#F2605C; --warn:#E8B84B;
   --r-lg:16px; --r-md:11px; --r-sm:8px;
@@ -73,7 +73,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:11px;
   background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);padding:16px 18px;margin-bottom:22px}
 .ctl{display:flex;flex-direction:column;gap:6px;min-width:0}
-.ctl label{font-size:11px;color:var(--ink-3)}
+.ctl label{font-size:11.5px;color:var(--ink-2);font-weight:500}
 .ctl input,.ctl select{font:inherit;font-size:13.5px;padding:8px 10px;border-radius:var(--r-sm);
   border:1px solid var(--edge);background:rgba(0,0,0,.32);color:var(--ink);min-width:0}
 .ctl input{font-family:"JetBrains Mono",monospace}
@@ -83,26 +83,38 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin-bottom:22px}
 .stat{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-md);padding:13px 15px}
 .stat dt{margin:0;font-size:11px;color:var(--ink-3)}
-.stat dd{margin:7px 0 0;font-family:"JetBrains Mono",monospace;font-size:21px;font-weight:600;letter-spacing:-.03em}
+.stat dd{margin:8px 0 0;font-family:"JetBrains Mono",monospace;font-size:23px;font-weight:600;letter-spacing:-.03em}
 
 /* ── table ──────────────────────────────────────────────── */
 .wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg)}
-table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px;min-width:1020px}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px;min-width:1080px}
 /* sticky 를 쓰지 않는다: .wrap 이 overflow-x 로 스크롤 컨테이너가 되면서
    sticky 의 top 이 '뷰포트'가 아니라 '.wrap 안쪽' 기준이 되어,
    헤더가 첫 행 아래로 60px 밀려 내려간다. */
-thead th{font-size:11px;font-weight:500;color:var(--ink-3);text-align:right;padding:12px 14px;
-  border-bottom:1px solid var(--edge);white-space:nowrap;background:rgba(255,255,255,.02);
-  cursor:pointer;user-select:none}
-thead th:first-child,thead th:nth-child(2),tbody td:first-child,tbody td:nth-child(2){text-align:left}
+thead th{font-size:10.5px;font-weight:600;color:var(--ink-3);text-align:right;padding:13px 14px 11px;
+  border-bottom:1px solid var(--edge-2);white-space:nowrap;background:#101319;
+  letter-spacing:.055em;cursor:pointer;user-select:none}
+.wrap>table>thead th:first-child,.wrap>table>thead th:nth-child(2),
+.wrap>table>thead th:nth-child(4),.wrap>table>thead th:nth-child(5),
+.wrap>table>tbody td:first-child,.wrap>table>tbody td:nth-child(2),
+.wrap>table>tbody td:nth-child(4){text-align:left}
 thead th:hover{color:var(--ink)}
 thead th .arrow{color:var(--accent);margin-left:3px}
-tbody td{padding:10px 14px;text-align:right;border-bottom:1px solid rgba(255,255,255,.045);white-space:nowrap}
+tbody td{padding:12px 14px;text-align:right;border-bottom:1px solid rgba(255,255,255,.055);white-space:nowrap}
 tbody tr:last-child td{border-bottom:0}
 tbody tr{cursor:pointer;transition:background .12s}
 tbody tr:hover{background:rgba(255,255,255,.04)}
 tbody tr.open{background:rgba(139,124,255,.08)}
-.sym{font-weight:600;letter-spacing:-.01em}
+.wrap>table>thead th:first-child,.wrap>table>tbody td:first-child{position:sticky;left:0;z-index:3;
+  width:52px;background:#0D1015}
+.wrap>table>thead th:nth-child(2),.wrap>table>tbody td:nth-child(2){position:sticky;left:52px;z-index:3;
+  background:#0D1015;box-shadow:9px 0 12px -10px rgba(0,0,0,.9)}
+.wrap>table>thead th:first-child,.wrap>table>thead th:nth-child(2){background:#101319;z-index:4}
+.wrap>table>tbody tr:hover td:first-child,.wrap>table>tbody tr:hover td:nth-child(2){background:#151922}
+.wrap>table>tbody tr.open td:first-child,.wrap>table>tbody tr.open td:nth-child(2){background:#191A2C}
+/* 상세 패널의 작은 표는 위 고정 규칙에서 완전히 빠져나온다 */
+table.mini td,table.mini th{position:static;width:auto}
+.sym{font-weight:600;font-size:14px;letter-spacing:-.01em}
 .rank{color:var(--ink-3);font-family:"JetBrains Mono",monospace}
 .scorebar{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 .scorebar .track{width:46px;height:4px;background:rgba(255,255,255,.09);border-radius:99px;overflow:hidden}
@@ -112,8 +124,8 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
 @keyframes fd{0%{background:rgba(242,96,92,.28)}100%{background:transparent}}
 .detail td{background:rgba(0,0,0,.28);padding:14px 18px}
 .checks{display:flex;gap:9px;flex-wrap:wrap}
-.check{display:flex;align-items:center;gap:7px;font-size:12px;background:rgba(255,255,255,.04);
-  border:1px solid var(--edge);border-radius:99px;padding:5px 12px}
+.check{display:flex;align-items:center;gap:7px;font-size:12.5px;background:rgba(255,255,255,.045);
+  border:1px solid var(--edge);border-radius:99px;padding:6px 13px}
 .check .mark{font-family:"JetBrains Mono",monospace;font-weight:700}
 .check.ok .mark{color:var(--gain)} .check.no .mark{color:var(--loss)}
 .check em{font-style:normal;color:var(--ink-3);font-family:"JetBrains Mono",monospace;font-size:11px}
@@ -133,6 +145,10 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
 .fund-box h3.long{color:var(--gain)} .fund-box h3.short{color:var(--loss)}
 .fund-box table{min-width:0}
 .fund-box td,.fund-box th{padding:8px 12px;font-size:12px}
+.sec-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin:0 0 13px;padding-bottom:9px;border-bottom:1px solid var(--edge)}
+.sec-head h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.02em}
+.sec-head p{margin:0;font-size:12px;color:var(--ink-3)}
 .fund-hint{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.7}
 .empty{padding:56px 20px;text-align:center;color:var(--ink-3);font-size:13.5px}
 .note{font-size:12px;color:var(--ink-3);line-height:1.7;margin-top:14px}
@@ -140,6 +156,106 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
   padding:2px 6px;border-radius:5px;color:var(--accent-2)}
 .err{background:rgba(242,96,92,.1);border:1px solid rgba(242,96,92,.35);color:#FFC9C5;
   border-radius:var(--r-md);padding:12px 15px;font-size:12.5px;margin-bottom:18px}
+
+/* ── 구조 컬럼 · 상세 패널 · 차트 (2026-09-08 추가) ───────────── */
+td.dowtd{text-align:left}
+.dowcell{display:inline-block;font-size:11.5px;font-weight:600;white-space:nowrap;letter-spacing:-.01em;
+  padding:3px 10px;border-radius:999px;border:1px solid var(--edge);
+  background:rgba(255,255,255,.045);color:var(--ink-2)}
+/* 거미줄 관점의 색: 수축이 가장 좋고 확장이 가장 나쁘다.
+   상승·하락추세는 방향일 뿐 사다리의 좋고 나쁨이 아니라 글자색만 준다. */
+.dowcell.good{color:var(--gain);background:rgba(47,208,138,.12);border-color:rgba(47,208,138,.32)}
+.dowcell.bad{color:var(--warn);background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.32)}
+.dowcell.up{color:#8FE3BE} .dowcell.down{color:#F5A6A3}
+.sizebox{margin-top:12px;padding:14px 16px;border:1px solid var(--edge-2);
+  border-radius:12px;background:rgba(139,124,255,.045)}
+.sizehead{font-size:13px;font-weight:700;margin-bottom:12px;letter-spacing:-.01em}
+.sizehead em{display:block;font-style:normal;font-weight:400;color:var(--ink-3);
+  margin-top:3px;font-size:11.5px;line-height:1.6}
+.sizegrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.sizecol{min-width:0}
+@media(max-width:760px){.sizegrid{grid-template-columns:1fr}}
+.sizecol h4{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:-.01em;
+  padding-bottom:6px;border-bottom:1px solid var(--edge)}
+/* 메인 표의 min-width 를 상속하면 상세 패널의 작은 표가 1080px 로 벌어져
+   롱·숏 두 칸이 서로 겹친다. 반드시 0 으로 되돌린다. */
+table.mini{width:100%;min-width:0;border-collapse:collapse;font-size:12.5px;table-layout:auto}
+table.mini td,table.mini th{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.055);text-align:left}
+table.mini td:first-child{color:var(--ink-2);white-space:nowrap}
+table.mini td.num{text-align:right;color:var(--ink);font-size:13px}
+table.mini td.num b{font-weight:700}
+table.mini td.num em,table.mini td:first-child em{display:block;font-style:normal;font-weight:400;
+  font-size:10.5px;color:var(--ink-3);margin-top:2px;letter-spacing:0}
+table.mini th{color:var(--ink-3);font-weight:600;font-size:10.5px;letter-spacing:.05em}
+table.mini.size tr.hl td{background:rgba(139,124,255,.09)}
+table.mini tr.bad td{background:rgba(242,96,92,.11)}
+table.mini tr.bad td:first-child{color:#F5A6A3;font-weight:600}
+table.mini tr.bad td.num b{color:var(--loss)}
+table.mini.size tr.hl td:first-child{color:var(--accent-2);font-weight:600}
+.warnline{margin:8px 0 0;font-size:11px;color:var(--warn);line-height:1.5}
+.sizecol h4.long{color:var(--gain)} .sizecol h4.short{color:var(--loss)}
+table.mini.wide td:first-child{color:var(--ink-2)}
+.deepgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px}
+.deepbox{min-width:0;overflow-x:auto}
+@media(max-width:960px){.deepgrid{grid-template-columns:1fr}}
+.deepbox{padding:12px 14px;border:1px solid rgba(255,255,255,.09);border-radius:12px;
+  background:rgba(255,255,255,.02)}
+.deepbox h4{margin:0 0 10px;font-size:12px;font-weight:700;letter-spacing:-.01em;
+  padding-bottom:6px;border-bottom:1px solid var(--edge)}
+.deepbox p.dim{margin:8px 0 0;font-size:11px;color:var(--ink-3);line-height:1.5}
+.deepnote{margin-top:12px;font-size:12px;color:var(--ink-3)}
+td.dim,.dim{color:var(--ink-3);font-size:11.5px}
+.chart-ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chart-ctl input,.chart-ctl select{font:inherit;font-size:12.5px;padding:7px 10px;border-radius:8px;
+  border:1px solid var(--edge-2);background:rgba(0,0,0,.32);color:inherit}
+.chart-ctl input{min-width:200px}
+.seg{display:flex;border:1px solid var(--edge-2);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-right:1px solid var(--edge);background:transparent;color:var(--ink-3);
+  font:inherit;font-size:12px;font-weight:600;padding:7px 11px;border-radius:0;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:rgba(255,255,255,.07);color:var(--ink)}
+.seg button.on{background:var(--accent);color:#0B0A18}
+.chartempty{margin-top:12px;padding:34px 20px;text-align:center;font-size:13px;color:var(--ink-3);
+  border:1px dashed var(--edge-2);border-radius:12px}
+.chartgrid{display:grid;gap:1px;background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.09);border-radius:12px;overflow:hidden;margin-top:12px}
+.chartgrid:empty{display:none}
+.chartgrid > div{background:var(--ground);position:relative;min-width:0;min-height:0}
+.chartgrid > div.solo{grid-column:1/-1;grid-row:1/-1}
+.chartgrid > div > .cap{position:absolute;top:0;left:0;z-index:4;padding:2px 7px;font-size:10px;
+  font-weight:600;color:var(--ink-3);background:rgba(10,12,17,.75);border-bottom-right-radius:6px}
+@media(max-width:760px){.chartgrid{grid-template-columns:1fr!important}}
+/* 프로그램에 그대로 옮겨 적는 값 — 근거 표와 확실히 구분되어야 한다 */
+.okxcard{border:1px solid rgba(139,124,255,.42);border-radius:10px;overflow:hidden;
+  background:rgba(139,124,255,.075);margin-bottom:10px}
+.okxhead{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:7px 11px;font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--accent-2);
+  background:rgba(139,124,255,.13);border-bottom:1px solid rgba(139,124,255,.28)}
+.copybtn{font:inherit;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:6px;
+  border:1px solid rgba(139,124,255,.45);background:transparent;color:var(--accent-2);cursor:pointer}
+.copybtn:hover{background:rgba(139,124,255,.2);color:#fff}
+table.mini.okx{font-size:13px}
+table.mini.okx td{padding:7px 11px;border-bottom:1px solid rgba(139,124,255,.16)}
+table.mini.okx tr:last-child td{border-bottom:0}
+table.mini.okx td:first-child{color:var(--ink-2);font-weight:500}
+table.mini.okx td.num b{font-size:15px;color:#fff;letter-spacing:-.02em}
+
+/* 종목 직접 조회 */
+.manualcard{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);padding:16px 18px}
+.manualhead{display:flex;align-items:center;justify-content:space-between;gap:14px;
+  flex-wrap:wrap;margin-bottom:13px;padding-bottom:11px;border-bottom:1px solid var(--edge)}
+.mh-left{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.mh-left .sym{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.mh-right{display:flex;align-items:center;gap:11px;font-size:12px;color:var(--ink-3)}
+.mh-right b{color:var(--ink);font-size:14px}
+.pill{font-size:11.5px;font-weight:600;padding:4px 11px;border-radius:999px;border:1px solid transparent}
+.pill.ok{color:var(--gain);background:rgba(47,208,138,.12);border-color:rgba(47,208,138,.32)}
+.pill.no{color:var(--warn);background:rgba(232,184,75,.12);border-color:rgba(232,184,75,.32)}
+.manualwarn{margin:0 0 13px;font-size:12px;line-height:1.7;color:var(--warn);
+  background:rgba(232,184,75,.07);border-left:2px solid rgba(232,184,75,.5);padding:9px 13px;border-radius:0 7px 7px 0}
+body.chartfull #charts-sec{position:fixed;inset:0;z-index:99;margin:0;padding:10px;
+  background:var(--ground);overflow:hidden;display:flex;flex-direction:column}
+body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
 </style>
 </head>
 <body>
@@ -180,6 +296,24 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
       <input type="number" id="c-wave" value="6" step="1" min="2" max="24"></div>
     <div class="ctl"><label for="c-interval">실시간 갱신 (초)</label>
       <input type="number" id="c-interval" value="3" step="1" min="2" max="60"></div>
+    <div class="ctl"><label for="c-equity">풀시드 · 총 증거금 (USDT)</label>
+      <input type="number" id="c-equity" value="590" step="10" min="10"></div>
+    <div class="ctl"><label for="c-lev">배율 (0 = 권장값 자동)</label>
+      <input type="number" id="c-lev" value="0" step="1" min="0" max="125"></div>
+    <div class="ctl"><label for="c-risk">경고 기준 손실 (%)</label>
+      <input type="number" id="c-risk" value="10" step="1" min="1" max="100"></div>
+    <div class="ctl"><label for="c-orders">거미줄 개수</label>
+      <input type="number" id="c-orders" value="60" step="5" min="2" max="200"></div>
+    <div class="ctl"><label for="c-span">거미줄 폭 기준</label>
+      <select id="c-span">
+        <option value="fixed">직접 입력</option>
+        <option value="auto">관측 구간 실제 레인지</option>
+        <option value="mae">역행폭 (보수적)</option>
+      </select></div>
+    <div class="ctl"><label for="c-spanval">거미줄 전체 폭 (%)</label>
+      <input type="number" id="c-spanval" value="3.5" step="0.5" min="0.2" max="60"></div>
+    <div class="ctl"><label for="c-tpmult">TP = 주문 간격 × ?</label>
+      <input type="number" id="c-tpmult" value="5" step="0.5" min="1" max="30"></div>
   </section>
 
   <dl class="stats">
@@ -196,6 +330,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="sym">종목</th>
         <th data-sort="score">점수</th>
         <th data-sort="bias">추천</th>
+        <th data-sort="dow">구조</th>
         <th data-sort="last">현재가</th>
         <th data-sort="chg">24h</th>
         <th data-sort="range">전일 변동성</th>
@@ -206,9 +341,48 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
         <th data-sort="swings">되돌림/h</th>
         <th data-sort="fund">펀딩/일</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="13" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="14" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
+
+  <section id="charts-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <div><h2>차트 한 화면</h2>
+        <p id="chart-meta">통과 상위 종목을 한 창에서 봅니다. 더블클릭하면 그 칸만 커집니다.</p></div>
+      <div class="chart-ctl">
+        <div class="seg" id="chart-n">
+          <button type="button" data-n="1">1</button>
+          <button type="button" data-n="2">2</button>
+          <button type="button" data-n="4" class="on">4</button>
+          <button type="button" data-n="6">6</button>
+          <button type="button" data-n="9">9</button>
+        </div>
+        <input id="chart-syms" placeholder="비우면 상위 종목 자동" spellcheck="false">
+        <select id="chart-tf">
+          <option value="1">1분</option><option value="5" selected>5분</option>
+          <option value="15">15분</option><option value="60">1시간</option>
+          <option value="240">4시간</option><option value="D">일봉</option>
+        </select>
+        <button type="button" id="btn-charts">차트 띄우기</button>
+        <button type="button" id="btn-charts-full">전체화면</button>
+      </div>
+    </div>
+    <div id="chart-grid" class="chartgrid"></div>
+    <div id="chart-empty" class="chartempty">차트 띄우기를 누르면 통과 상위 종목이 한 창에 뜹니다.</div>
+  </section>
+
+  <section id="manual-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <div><h2>종목 직접 조회</h2>
+        <p>조건을 통과하지 않은 종목도 같은 지표로 봅니다. 진입 세팅·다우 구조·BTC 상관까지 그대로 나옵니다.</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="m-sym" spellcheck="false" placeholder="예: IOST · SOPHUSDT · AR-USDT-SWAP"
+               style="min-width:230px;padding:8px 11px;border-radius:8px;border:1px solid var(--edge-2);background:rgba(0,0,0,.32);color:inherit;font:inherit">
+        <button type="button" class="primary" id="btn-manual">조회</button>
+      </div>
+    </div>
+    <div id="manual-box"></div>
+  </section>
 
   <section id="funding-sec" style="margin-top:30px">
     <div class="sec-head">
@@ -260,12 +434,16 @@ const CACHE_KEY = "idea-screener-scan-v3";
 const DAY_MS = 86400000;
 
 const CFG = { minRange:.10, minYears:1, maxMove:.40, dropMode:"body", minTurnover:3e6,
-              bbPeriod:20, interval:3, waveHours:6, minSwings:0 };
+              bbPeriod:20, interval:3, waveHours:6, minSwings:0 , equity: 590, risk: 10, lev: 0, orders: 60, span: "fixed", spanval: 3.5, tpmult: 5 };
 
-let INSTRUMENTS = [];        // [{instId, ctVal}]
+let INSTRUMENTS = [];        // [{instId, ctVal, tickSz, lotSz, minSz}]
+let INSTMAP = {};            // instId -> 위 객체 (호가 단위·최소 수량 확인용)
 let METRICS = {};            // instId -> 일/주/월봉에서 뽑은 정적 지표 (하루 1회 갱신)
 let TICKERS = {};            // instId -> 실시간 티커
 let WAVES = {};              // instId -> 파동 지표 (통과 종목만, 몇 분마다 갱신)
+let DOWS = {};               // instId -> 다우 구조 (15분봉)
+let CS15 = {};               // instId -> 15분봉 원본 (진입 세팅 계산용)
+let DEEP = {};               // instId -> { dow:[다중시간대], corr:[상관계수] } — 행을 펼칠 때만
 let PREV_PRICE = {};         // 깜빡임 효과용
 let ROWS = [];               // 화면에 그릴 현재 결과
 let SORT = { key:"score", dir:-1 };
@@ -546,7 +724,10 @@ async function fullScan(force){
     const insts = await api("/api/v5/public/instruments?instType=SWAP");
     INSTRUMENTS = insts
       .filter(r => r.state === "live" && r.settleCcy === "USDT" && r.ctType === "linear")
-      .map(r => ({ instId: r.instId, ctVal:+r.ctVal || 0 }));
+      .map(r => ({ instId: r.instId, ctVal:+r.ctVal || 0,
+                   tickSz:+r.tickSz || 0, lotSz:+r.lotSz || 0, minSz:+r.minSz || 0 }));
+    INSTMAP = {};
+    for (const i of INSTRUMENTS) INSTMAP[i.instId] = i;
 
     setProgress(8, "시세를 받는 중…", `${INSTRUMENTS.length}종목`);
     await refreshTickers();
@@ -629,14 +810,203 @@ async function scanWaves(){
     .filter(id => TICKERS[id] && passesStatic(id, METRICS[id], TICKERS[id]));
   if (!targets.length) return;
   const next = {};
+  const nextDow = {}, nextCs = {};
   await pool(targets, 6, async (id) => {
     const cs = parseCandles(await api(`/api/v5/market/candles?instId=${id}&bar=15m&limit=300`));
     next[id] = analyzeWaves(cs, CFG.waveHours);
+    nextDow[id] = dowStruct(cs);          // 구조는 15분봉 기준
+    nextCs[id] = cs;                      // 진입 세팅 계산에 재사용 (추가 요청 없음)
   }, () => {});
   Object.assign(WAVES, next);
+  Object.assign(DOWS, nextDow);
+  Object.assign(CS15, nextCs);
   const el = document.getElementById("wave-ts");
   if (el) el.textContent = new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
   render();
+  // 매번 다시 그리면 사용자가 만진 차트가 초기화된다. 처음 한 번만.
+  if (!chartsDrawn && ROWS.length) drawCharts();
+}
+
+/* ── 다우이론 구조 ──────────────────────────────────────────────────
+   고점·저점이 어느 쪽으로 갱신되는지로 추세를 정의한다.
+     HH+HL 상승 · LH+LL 하락 · HH+LL 확장(사다리 위험) · LH+HL 수축(수렴)
+   진폭 amp% 이상 되돌아와야 전환점으로 인정한다. amp 를 그 시간대
+   평균 진폭에 맞춰야 1분봉에서 노이즈가 전부 고점으로 잡히지 않는다. */
+function zigzag(cs, amp){
+  if (cs.length < 3) return [];
+  const out = []; let dir = 0, ext = cs[0].c, ei = 0;
+  for (let i = 0; i < cs.length; i++){
+    const c = cs[i];
+    if (dir >= 0){
+      if (c.h > ext){ ext = c.h; ei = i; }
+      else if (ext && (ext - c.l) / ext * 100 >= amp){
+        out.push({k:"H", p:ext, i:ei}); dir = -1; ext = c.l; ei = i; continue;
+      }
+    }
+    if (dir <= 0){
+      if (c.l < ext) { ext = c.l; ei = i; }
+      if (ext && (c.h - ext) / ext * 100 >= amp){
+        out.push({k:"L", p:ext, i:ei}); dir = 1; ext = c.h; ei = i;
+      }
+    }
+  }
+  return out;
+}
+const DOW_CLS = { "수축":"good", "확장":"bad", "상승추세":"up", "하락추세":"down" };
+const DOW_MARK = { "상승추세":"▲", "하락추세":"▼", "확장":"◆", "수축":"◇", "판정불가":"·" };
+function dowStruct(cs, amp){
+  const none = { trend:"판정불가", hi:"-", lo:"-", lastHigh:0, lastLow:0, prevHigh:0, prevLow:0, note:"봉 부족" };
+  if (!cs || cs.length < 10) return none;
+  if (amp == null){
+    const w = cs.slice(-40);
+    const r = w.reduce((t,c) => t + (c.l ? (c.h - c.l) / c.l * 100 : 0), 0) / Math.max(1, w.length);
+    amp = Math.min(5, Math.max(0.2, r * 1.2));
+  }
+  const p = zigzag(cs, amp);
+  const H = p.filter(x => x.k === "H"), L = p.filter(x => x.k === "L");
+  if (H.length < 2 || L.length < 2) return Object.assign({}, none, { note:"전환점 부족" });
+  const h1 = H[H.length-1].p, h0 = H[H.length-2].p;
+  const l1 = L[L.length-1].p, l0 = L[L.length-2].p;
+  const hi = h1 > h0 ? "HH" : "LH", lo = l1 > l0 ? "HL" : "LL";
+  let trend, note = "";
+  if (hi === "HH" && lo === "HL") trend = "상승추세";
+  else if (hi === "LH" && lo === "LL") trend = "하락추세";
+  else if (hi === "HH" && lo === "LL"){ trend = "확장"; note = "양방향 확대 — 사다리 위험"; }
+  else { trend = "수축"; note = "삼각수렴 — 이탈 대기"; }
+  return { trend, hi, lo, lastHigh:h1, lastLow:l1, prevHigh:h0, prevLow:l0, note, amp };
+}
+
+/* ── 진입 세팅 (배율·거미줄 간격·사이즈) ──────────────────────────────
+   큰 손실 세 건이 전부 배율이 아니라 포지션 크기 문제였다.
+   역행폭(MAE)을 실측해 "청산까지 여유가 역행폭의 3배"가 되는 배율을 상한으로,
+   손절에 걸렸을 때 잃는 돈이 계좌의 risk% 를 넘지 않게 명목을 잡는다. */
+function maxAdverse(cs, bars){
+  const w = cs.slice(-bars);
+  if (!w.length) return { down:0, up:0 };
+  let down = 0, up = 0, peak = w[0].c, trough = w[0].c;
+  for (const c of w){
+    peak = Math.max(peak, c.h); trough = Math.min(trough, c.l);
+    if (peak) down = Math.max(down, (peak - c.l) / peak * 100);
+    if (trough) up = Math.max(up, (c.h - trough) / trough * 100);
+    if (c.l <= trough) peak = c.h;
+    if (c.h >= peak) trough = c.l;
+  }
+  return { down, up };
+}
+function sizing(cs, last, equity, riskPct, opt){
+  if (!cs || cs.length < 12 || !last) return null;
+  const o = opt || {};
+  const n = Math.max(2, Math.round(o.orders || 60));
+  const tpMult = Math.max(1, o.tpMult || 3);
+  const tick = o.tickSz || 0;
+  const hours = Math.max(1, o.hours || 6);
+
+  const seg = cs.slice(-24);
+  const atr = seg.reduce((t,c) => t + (c.l ? (c.h - c.l) / c.l * 100 : 0), 0) / Math.max(1, seg.length);
+  const m = maxAdverse(cs, 24);
+
+  // 관측 구간의 '실제로 오간 폭'. 사다리는 이 안에서 잔파동을 먹는 도구라
+  // 최악의 역행폭(MAE)보다 이쪽이 실전 폭에 가깝다.
+  const win = cs.slice(-Math.max(8, Math.round(hours * 4)));
+  const hi = Math.max.apply(null, win.map(c => c.h));
+  const lo = Math.min.apply(null, win.map(c => c.l));
+  const sessionRange = lo ? (hi - lo) / lo * 100 : 0;
+
+  const tickPct = tick && last ? tick / last * 100 : 0;   // 1틱이 몇 %인가
+  const tpFloor = Math.max(0.05, tickPct * 10);           // 프로그램 제한: 0.05% 이상, 10틱 이상
+
+  // 팀은 2개월간 **풀시드**로 돌린다. 총 증거금은 계산의 결과가 아니라 입력값이다.
+  // 그래서 나오는 숫자는 "얼마를 넣을까"가 아니라 "이 시드로 이 배율이면
+  // 어디까지 버티고 얼마를 잃는가"다.
+  const calc = (mae, dir) => {                            // dir +1 = 롱, -1 = 숏
+    mae = Math.max(mae, 0.3);
+    const levMax = Math.max(1, Math.floor(100 / (3 * mae + 0.5)));
+    const lev = o.lev && o.lev > 0 ? Math.round(o.lev) : levMax;
+    const stop = mae * 1.2;
+    const span = o.spanMode === "mae" ? mae
+               : o.spanMode === "fixed" ? Math.max(o.spanFixed || 3.5, 0.2)
+               : Math.max(sessionRange, 0.3);
+    const gap = span / n;                                 // ← 프로그램의 '주문 간격 (%)'
+    const tp = Math.max(gap * tpMult, tpFloor);           // ← 프로그램의 'TP %' (가격이동 기준)
+
+    const margin = equity;                                // ← 풀시드. 프로그램의 '총 증거금'
+    const notional = margin * lev;
+    const qty = notional / last;
+
+    const far = dir > 0 ? last * (1 - span / 100) : last * (1 + span / 100);
+    // 60개가 전부 체결되면 평균 진입가는 사다리 한가운데다.
+    const avgEntry = (last + far) / 2;
+    const lossAtBottom = notional * (span / 2) / 100;     // 하단까지 밀렸을 때 평가손실
+    const lossAtMae = notional * Math.max(0, mae - span / 2) / 100;
+    const liqMovePct = Math.max(0.5, 100 / lev - 0.5);    // 유지증거금률 0.5% 가정
+    const liqPx = dir > 0 ? avgEntry * (1 - liqMovePct / 100) : avgEntry * (1 + liqMovePct / 100);
+
+    return { mae, lev, levMax, over: lev > levMax, stop, span, gap, n, tp,
+             tpFloored: gap * tpMult < tpFloor, realized: tp * lev,
+             notional, margin, qty, perQty: qty / n, perNotional: notional / n,
+             avgEntry, lossAtBottom, lossAtMae, liqMovePct, liqPx,
+             bottomPctSeed: lossAtBottom / equity * 100,
+             maePctSeed: lossAtMae / equity * 100,
+             top: dir > 0 ? last : far, bot: dir > 0 ? far : last,
+             gapPx: Math.abs(last - far) / n,
+             stopPx: dir > 0 ? last * (1 - stop / 100) : last * (1 + stop / 100),
+             tight: tickPct > 0 && gap < tickPct * 2 };
+  };
+  return { atr, n, sessionRange, hours, tickPct, equity,
+           long: calc(m.down, 1), short: calc(m.up, -1) };
+}
+
+/* ── BTC 추종 여부 (상관계수·베타) ────────────────────────────────
+   체크리스트 1단계. 15분봉에서 상관이 0에 가까우면 BTC 분석이
+   이 종목 판단에 도움이 안 된다 — 팀은 분 단위로 매매하기 때문이다. */
+const CORR_FRAMES = [["15m",192,"15분 · 2일"], ["1H",168,"1시간 · 7일"],
+                     ["4H",180,"4시간 · 30일"], ["1D",90,"일봉 · 90일"]];
+const BTC_CACHE = {};
+function logRets(cs){
+  const m = {};
+  for (let i = 1; i < cs.length; i++)
+    if (cs[i-1].c > 0 && cs[i].c > 0) m[cs[i].ts] = Math.log(cs[i].c / cs[i-1].c);
+  return m;
+}
+function pearson(x, y){
+  const n = x.length; if (n < 10) return { r:0, beta:0, r2:0 };
+  const mx = mean(x), my = mean(y);
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++){ const a = x[i]-mx, b = y[i]-my; sxy += a*b; sxx += a*a; syy += b*b; }
+  if (sxx <= 0 || syy <= 0) return { r:0, beta:0, r2:0 };
+  const r = sxy / Math.sqrt(sxx * syy);
+  return { r, beta: sxy / sxx, r2: r * r };
+}
+const corrLabel = (r) => { const a = Math.abs(r);
+  return a >= .70 ? "강한 추종" : a >= .40 ? "보통 추종" : a >= .20 ? "약한 추종" : "거의 무관"; };
+async function correlate(instId){
+  const out = [];
+  for (const [bar, n, desc] of CORR_FRAMES){
+    try{
+      if (!BTC_CACHE[bar])
+        BTC_CACHE[bar] = parseCandles(await api(`/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=${bar}&limit=${n+2}`));
+      const S = logRets(parseCandles(await api(`/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=${n+2}`)));
+      const B = logRets(BTC_CACHE[bar]);
+      const keys = Object.keys(S).filter(k => k in B);
+      if (keys.length < 10){ out.push({ desc, n:keys.length, r:0, beta:0, r2:0, ok:false }); continue; }
+      const st = pearson(keys.map(k => B[k]), keys.map(k => S[k]));
+      out.push(Object.assign({ desc, n:keys.length, ok:true }, st));
+    }catch(e){ out.push({ desc, n:0, r:0, beta:0, r2:0, ok:false }); }
+  }
+  return out;
+}
+
+/* ── 다중 시간대 구조 (행을 펼칠 때 그 종목만) ───────────────────── */
+const DOW_FRAMES = ["5m","15m","1H","4H","1D"];
+async function multiDow(instId){
+  const out = [];
+  for (const bar of DOW_FRAMES){
+    try{
+      const cs = parseCandles(await api(`/api/v5/market/candles?instId=${instId}&bar=${bar}&limit=200`));
+      out.push(Object.assign({ bar }, dowStruct(cs)));
+    }catch(e){ out.push({ bar, trend:"판정불가", hi:"-", lo:"-", note:"조회 실패" }); }
+  }
+  return out;
 }
 
 /* ── 실시간 ────────────────────────────────────────────────────── */
@@ -687,13 +1057,219 @@ function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
                       mid:r.midPct, turnover:r.turnover, drop:-r.drop, move:-r.maxMove1y, years:r.years,
-                      swings:r.swingsPerHour, bias:r.bias.score,
+                      swings:r.swingsPerHour, bias:r.bias.score, dow:({상승추세:2,수축:1,판정불가:0,하락추세:-1,확장:-2}[(DOWS[r.instId]||{}).trend] ?? 0),
                       fund: r.fund ? r.fund.daily : 0, rank:r.score }[key]);
   return rows.sort((a,b) => {
     const x = val(a), y = val(b);
     if (typeof x === "string") return dir * x.localeCompare(y);
     return dir * (x - y);
   });
+}
+
+/* ── 상세 패널: 진입 세팅 · 다중 시간대 구조 · BTC 상관 ──────────── */
+function sizingHtml(r){
+  const inst = INSTMAP[r.instId] || {};
+  const sz = sizing(CS15[r.instId], r.last, CFG.equity, CFG.risk,
+                    { orders: CFG.orders, tpMult: CFG.tpmult, spanMode: CFG.span,
+                      spanFixed: CFG.spanval, lev: CFG.lev,
+                      tickSz: inst.tickSz, hours: CFG.waveHours });
+  if (!sz) return '<div class="deepnote">15분봉이 아직 없습니다. 파동 스캔을 기다려 주세요.</div>';
+  const n0 = (v, d) => v.toLocaleString("en-US", { maximumFractionDigits: d });
+  // 프로그램 입력칸은 % 를 소수 6자리까지 받는다. 그 형식 그대로 뽑아 준다.
+  const p6 = (v) => v.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
+
+  const side = (name, cls, k) => {
+    const line = `${r.sym} ${name} · 총 증거금 ${k.margin.toFixed(2)} · 주문 간격 ${p6(k.gap)}%`
+               + ` · 거미줄 ${k.n}개 · TP ${p6(k.tp)}% · SL 0 · ${k.lev}배`;
+    const danger = k.bottomPctSeed >= CFG.risk;
+    return `
+    <div class="sizecol">
+      <h4 class="${cls}">${name} 거미줄</h4>
+      <div class="okxcard">
+        <div class="okxhead">이데아 퀀트에 넣을 값
+          <button type="button" class="copybtn" data-copy="${line}">복사</button></div>
+        <table class="mini okx">
+          <tr><td>총 증거금</td><td class="num"><b>${k.margin.toFixed(2)}</b> USDT<em>풀시드 전액</em></td></tr>
+          <tr><td>주문 간격</td><td class="num"><b>${p6(k.gap)}</b> %<em>전체 폭 ${k.span.toFixed(2)}% ÷ ${k.n}개</em></td></tr>
+          <tr><td>거미줄 개수</td><td class="num"><b>${k.n}</b></td></tr>
+          <tr><td>TP %</td><td class="num"><b>${p6(k.tp)}</b><em>가격이동 기준 · 실현 ${k.realized.toFixed(2)}% (${k.lev}배)${
+            k.tpFloored ? " · 최소치로 올림" : ""}</em></td></tr>
+          <tr><td>SL %</td><td class="num"><b>0</b><em>손절 없음 — ${fmtPrice(k.stopPx)} 이탈 시 수동 종료</em></td></tr>
+          <tr><td>배율</td><td class="num"><b class="${k.over ? "neg" : ""}">${k.lev}배</b><em>${
+            k.over ? "권장 상한 " + k.levMax + "배 초과" : "권장 상한 " + k.levMax + "배 (역행폭 " + k.mae.toFixed(2) + "%)"}</em></td></tr>
+        </table>
+      </div>
+      <table class="mini">
+        <tr><td>거미줄 범위</td><td class="num">${fmtPrice(k.bot)} ~ ${fmtPrice(k.top)}<em>1칸 ${fmtPrice(k.gapPx)} · 평균 진입 ${fmtPrice(k.avgEntry)}</em></td></tr>
+        <tr><td>명목가치</td><td class="num">${n0(k.notional, 0)} USDT<em>수량 ${n0(k.qty, 0)} · 1주문당 ${n0(k.perQty, 4)}</em></td></tr>
+        <tr class="${danger ? "bad" : ""}"><td>하단까지 밀리면</td><td class="num"><b>−${n0(k.lossAtBottom, 2)}</b> USDT<em>시드의 ${k.bottomPctSeed.toFixed(1)}%${
+          danger ? " — 경고 기준 " + CFG.risk + "% 초과" : ""}</em></td></tr>
+        <tr><td>역행폭까지 밀리면</td><td class="num">−${n0(k.lossAtMae, 2)} USDT<em>시드의 ${k.maePctSeed.toFixed(1)}% · 역행폭 ${k.mae.toFixed(2)}%</em></td></tr>
+        <tr><td>청산가</td><td class="num neg">${fmtPrice(k.liqPx)}<em>평균 진입 대비 ${k.liqMovePct.toFixed(1)}%</em></td></tr>
+      </table>
+      ${k.tight ? '<p class="warnline">주문 간격이 호가 단위(1틱 ' + sz.tickPct.toFixed(4)
+                 + '%)에 너무 가깝습니다. 거미줄 개수를 줄이세요.</p>' : ''}
+    </div>`;
+  };
+
+  return `<div class="sizebox">
+    <div class="sizehead">진입 세팅 — 풀시드 ${CFG.equity.toLocaleString()} USDT 전액을 증거금으로
+      <em>폭 기준 ${CFG.span === "mae" ? "역행폭(종목별)"
+                : CFG.span === "fixed" ? "직접 입력 " + CFG.spanval + "%"
+                : "최근 " + sz.hours + "시간 레인지 " + sz.sessionRange.toFixed(2) + "%"}
+        · 참고: 최근 ${sz.hours}시간 실제 레인지 ${sz.sessionRange.toFixed(2)}%
+        · 경고 기준 손실 ${CFG.risk}%</em></div>
+    <div class="sizegrid">${side("롱", "long", sz.long)}${side("숏", "short", sz.short)}</div>
+  </div>`;
+}
+
+function deepHtml(instId){
+  const d = DEEP[instId];
+  if (!d) return '<div class="deepnote">시간대별 구조와 BTC 상관을 불러오는 중…</div>';
+  if (d.err) return `<div class="deepnote neg">불러오지 못했습니다: ${d.err}</div>`;
+  const dowRows = d.dow.map(x => `<tr>
+      <td>${x.bar}</td>
+      <td class="${x.trend === "확장" ? "neg" : x.trend === "수축" ? "pos" : ""}">${DOW_MARK[x.trend]||"·"} ${x.trend}</td>
+      <td class="num">${x.hi}</td><td class="num">${x.lo}</td>
+      <td class="num">${x.lastHigh ? fmtPrice(x.lastHigh) : "—"}</td>
+      <td class="num">${x.lastLow ? fmtPrice(x.lastLow) : "—"}</td>
+      <td class="dim">${x.note || ""}</td></tr>`).join("");
+  const votes = {};
+  d.dow.forEach(x => { votes[x.trend] = (votes[x.trend]||0) + 1; });
+  const top = Object.keys(votes).sort((a,b) => votes[b]-votes[a])[0];
+  const agree = votes[top] || 0;
+  const corrRows = d.corr.map(x => `<tr>
+      <td>${x.desc}</td><td class="num">${x.n}</td>
+      <td class="num ${Math.abs(x.r) >= .7 ? "pos" : Math.abs(x.r) < .2 ? "neg" : ""}">${x.ok ? (x.r>=0?"+":"−")+Math.abs(x.r).toFixed(3) : "—"}</td>
+      <td class="num">${x.ok ? x.beta.toFixed(2) : "—"}</td>
+      <td class="num">${x.ok ? (x.r2*100).toFixed(0)+"%" : "—"}</td>
+      <td class="dim">${x.ok ? corrLabel(x.r) : "표본 부족"}</td></tr>`).join("");
+  const ok = d.corr.filter(x => x.ok);
+  const avg = ok.length ? ok.reduce((t,x) => t + x.r, 0) / ok.length : 0;
+  return `<div class="deepgrid">
+    <div class="deepbox">
+      <h4>다우이론 구조 (시간대별)</h4>
+      <table class="mini wide"><thead><tr><th>봉</th><th>구조</th><th>고점</th><th>저점</th>
+        <th>최근고점</th><th>최근저점</th><th></th></tr></thead><tbody>${dowRows}</tbody></table>
+      <p class="dim">${d.dow.length}개 봉 중 ${agree}개가 '${top}' —
+        ${agree / d.dow.length >= 0.6 ? "시간대가 대체로 일치한다." : "시간대가 갈린다. 방향 베팅은 피하고 짧게 끊는 편이 낫다."}
+        <br>손절선은 <b>최근저점(롱) / 최근고점(숏)</b> 을 그대로 쓰면 된다.</p>
+    </div>
+    <div class="deepbox">
+      <h4>BTC 추종 여부</h4>
+      <table class="mini wide"><thead><tr><th>구간</th><th>표본</th><th>상관계수</th>
+        <th>베타</th><th>R²</th><th></th></tr></thead><tbody>${corrRows}</tbody></table>
+      <p class="dim">평균 ${(avg>=0?"+":"−")+Math.abs(avg).toFixed(3)} → <b>${corrLabel(avg)}</b>.
+        ${Math.abs(avg) >= .70 ? "BTC 를 먼저 분석하고 방향을 정한 뒤 들어간다."
+          : Math.abs(avg) >= .40 ? "BTC 방향은 참고만. 개별 지표를 더 무겁게 본다."
+          : "BTC 분석이 이 종목 판단에 별 도움이 안 된다."}
+        <br>베타는 BTC 1% 당 이 종목의 % 변동.</p>
+    </div>
+  </div>`;
+}
+
+async function loadDeep(instId){
+  if (DEEP[instId]) return;
+  DEEP[instId] = null;
+  try{
+    const [dow, corr] = await Promise.all([multiDow(instId), correlate(instId)]);
+    DEEP[instId] = { dow, corr };
+  }catch(e){ DEEP[instId] = { err: e.message || "오류", dow:[], corr:[] }; }
+  if (OPEN_ROW === instId) render();
+}
+
+/* 표의 펼친 행과 '종목 직접 조회' 패널이 같은 내용을 쓴다. */
+function detailHtml(r){
+  return `
+    <div class="checks">${r.checks.map(c =>
+      `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
+       ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
+    <div class="checks" style="margin-top:10px">
+      <span class="check">변동성 <em>${r.parts.volatility.toFixed(0)}</em></span>
+      <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
+      <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
+      <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
+      <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)} · 밴드 ${(r.bbPos*100).toFixed(0)}%</em></span>
+      ${r.fund ? `<span class="check ${r.fund.daily < 0 ? "ok" : "no"}">펀딩 <em>${
+        (r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 → 하루 ${(r.fund.daily*100).toFixed(2)}% · ${
+        r.fund.daily < 0 ? "숏이 지불(롱 유리)" : "롱이 지불(숏 유리)"}</em></span>` : ""}
+      <span class="check ${r.bias.score >= 15 ? "ok" : r.bias.score <= -15 ? "no" : ""}">추천 <em>${r.bias.label} (${r.bias.score >= 0 ? "+" : ""}${r.bias.score}) · ${r.bias.reason}</em></span>
+      ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
+    </div>
+    ${sizingHtml(r)}
+    <div id="deep-${r.sym}">${deepHtml(r.instId)}</div>`;
+}
+
+/* ── 종목 직접 조회 ───────────────────────────────────────────────
+   조건을 통과하지 못한 종목도 같은 지표로 보고 싶다는 요구.
+   스캔 대상이 아니어도 그 자리에서 일·주·월봉과 15분봉을 받아 계산한다. */
+let MANUAL = null;
+
+function normInst(raw){
+  let v = (raw || "").trim().toUpperCase().replace(/[^A-Z0-9-]/g, "");
+  if (!v) return "";
+  if (v.endsWith("-USDT-SWAP")) return v;
+  v = v.replace(/-?USDT(-SWAP)?$/, "").replace(/-+$/, "");
+  return v ? v + "-USDT-SWAP" : "";
+}
+
+async function lookupManual(raw){
+  const box = document.getElementById("manual-box");
+  const id = normInst(raw);
+  if (!id){ box.innerHTML = ""; MANUAL = null; return; }
+  if (INSTRUMENTS.length && !INSTMAP[id]){
+    box.innerHTML = `<div class="err">OKX USDT 무기한에 <b>${id}</b> 이(가) 없습니다. 종목명을 확인해 주세요.</div>`;
+    MANUAL = null; return;
+  }
+  box.innerHTML = '<div class="empty">' + id.replace("-USDT-SWAP","") + ' 을(를) 불러오는 중…</div>';
+  try{
+    if (!TICKERS[id]) await refreshTickers();
+    if (!TICKERS[id]) throw new Error("시세를 받지 못했습니다");
+    const [mx, cs] = await Promise.all([
+      scanSymbol(id),
+      api(`/api/v5/market/candles?instId=${id}&bar=15m&limit=300`).then(parseCandles)
+    ]);
+    if (!mx) throw new Error("일봉을 받지 못했습니다");
+    METRICS[id] = mx;
+    CS15[id] = cs;
+    WAVES[id] = analyzeWaves(cs, CFG.waveHours);
+    DOWS[id] = dowStruct(cs);
+    try{ const f = await parseFunding(id); if (f) FUNDMAP[id] = f; }catch(e){}
+    MANUAL = id;
+    loadDeep(id);
+    renderManual();
+  }catch(e){
+    MANUAL = null;
+    box.innerHTML = `<div class="err">불러오지 못했습니다: ${e.message || e}</div>`;
+  }
+}
+
+function renderManual(){
+  const box = document.getElementById("manual-box");
+  if (!box) return;
+  if (!MANUAL || !METRICS[MANUAL] || !TICKERS[MANUAL]) return;
+  const r = judge(MANUAL, METRICS[MANUAL], TICKERS[MANUAL]);
+  const dw = DOWS[MANUAL] || { trend:"판정불가", note:"" };
+  const fail = r.checks.filter(c => !c.ok);
+  box.innerHTML = `<div class="manualcard">
+    <div class="manualhead">
+      <div class="mh-left">
+        <b class="sym">${r.sym}</b>
+        <span class="num">${fmtPrice(r.last)}</span>
+        <span class="num ${cls(r.chg)}">${pct(r.chg)}</span>
+        <span class="bias ${r.bias.score >= 15 ? "long" : r.bias.score <= -15 ? "short" : "flat"}">${r.bias.label}</span>
+        <span class="dowcell ${DOW_CLS[dw.trend] || ""}">${DOW_MARK[dw.trend] || "·"} ${
+          dw.trend === "판정불가" ? "—" : dw.trend}</span>
+      </div>
+      <div class="mh-right">
+        <span class="num" title="점수">점수 <b>${r.score.toFixed(1)}</b></span>
+        <span class="pill ${r.passed ? "ok" : "no"}">${r.passed ? "조건 통과" : "조건 탈락 · " + fail.length + "개"}</span>
+      </div>
+    </div>
+    ${r.passed ? "" : `<p class="manualwarn">스크리너 조건을 통과하지 못한 종목입니다 (${
+      fail.map(c => c.name).join(" · ")}). 아래 숫자는 참고용이며, 조건을 못 맞춘 이유를 먼저 보십시오.</p>`}
+    ${detailHtml(r)}
+  </div>`;
 }
 
 function render(){
@@ -711,9 +1287,10 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="13" class="empty">${
-      Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화해 보세요."
+    tb.innerHTML = `<tr><td colspan="14" class="empty">${
+      Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화하거나, 아래에서 종목을 직접 조회해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
+    renderManual();
     return;
   }
 
@@ -723,12 +1300,15 @@ function render(){
     const flash = prev == null || prev === r.last ? "" : (r.last > prev ? "flash-up" : "flash-down");
     PREV_PRICE[r.instId] = r.last;
     const isOpen = OPEN_ROW === r.instId;
+    const dw = DOWS[r.instId] || { trend:"판정불가", note:"" };
     html.push(`<tr data-id="${r.instId}" class="${isOpen ? "open" : ""}">
       <td class="rank">${i + 1}</td>
       <td class="sym">${r.sym}</td>
       <td><div class="scorebar"><span class="track"><i style="width:${r.score}%"></i></span>
         <b class="num">${r.score.toFixed(1)}</b></div></td>
       <td><span class="bias ${r.bias.score >= 15 ? "long" : r.bias.score <= -15 ? "short" : "flat"}">${r.bias.label}</span></td>
+      <td class="dowtd" title="${dw.note || ""}"><span class="dowcell ${DOW_CLS[dw.trend] || ""}">${
+        DOW_MARK[dw.trend] || "·"} ${dw.trend === "판정불가" ? "—" : dw.trend}</span></td>
       <td class="num ${flash}">${fmtPrice(r.last)}</td>
       <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
@@ -741,27 +1321,10 @@ function render(){
         r.fund ? `${(r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 · 한계 ${(r.fund.capPct*100).toFixed(0)}%` : ""}">${
         r.fund ? (r.fund.daily*100).toFixed(2) + "%" : "—"}</td>
     </tr>`);
-    if (isOpen){
-      html.push(`<tr class="detail"><td colspan="13">
-        <div class="checks">${r.checks.map(c =>
-          `<span class="check ${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "O" : "X"}</span>
-           ${c.name} <em>${c.detail}</em></span>`).join("")}</div>
-        <div class="checks" style="margin-top:10px">
-          <span class="check">파동 <em>${r.parts.waves.toFixed(0)}</em></span>
-          <span class="check">변동성 <em>${r.parts.volatility.toFixed(0)}</em></span>
-          <span class="check">추세 <em>${r.parts.trend.toFixed(0)}</em></span>
-          <span class="check">유동성 <em>${r.parts.liquidity.toFixed(0)}</em></span>
-          <span class="check">안정성 <em>${r.parts.stability.toFixed(0)}</em></span>
-          <span class="check">되돌림 <em>${r.swingsPerHour.toFixed(1)}회/h · 방향성 ${r.directionality.toFixed(3)} · 밴드 ${(r.bbPos*100).toFixed(0)}%</em></span>
-          ${r.fund ? `<span class="check ${r.fund.daily < 0 ? "ok" : "no"}">펀딩 <em>${
-            (r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 → 하루 ${(r.fund.daily*100).toFixed(2)}% · ${
-            r.fund.daily < 0 ? "숏이 지불(롱 유리)" : "롱이 지불(숏 유리)"}</em></span>` : ""}
-          <span class="check ${r.bias.score >= 15 ? "ok" : r.bias.score <= -15 ? "no" : ""}">추천 <em>${r.bias.label} (${r.bias.score >= 0 ? "+" : ""}${r.bias.score}) · ${r.bias.reason}</em></span>
-          ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
-        </div></td></tr>`);
-    }
+    if (isOpen) html.push(`<tr class="detail"><td colspan="14">${detailHtml(r)}</td></tr>`);
   });
   tb.innerHTML = html.join("");
+  renderManual();
 }
 
 /* ── 펀딩비 ────────────────────────────────────────────────────────── */
@@ -880,12 +1443,135 @@ function renderFunding(){
 
 document.getElementById("btn-fund").addEventListener("click", loadFunding);
 
+/* ── 차트 한 화면 ──────────────────────────────────────────────────
+   TradingView 위젯은 container_id 를 명시해 만든다. 임베드 스크립트를
+   칸마다 붙이면 여러 개가 동시에 뜨면서 같은 컨테이너를 서로 잡는다. */
+let tvReady = null;
+function loadTV(){
+  if (tvReady) return tvReady;
+  tvReady = new Promise((ok, no) => {
+    if (window.TradingView) return ok();
+    const el = document.createElement("script");
+    el.src = "https://s3.tradingview.com/tv.js";
+    el.onload = ok;
+    el.onerror = () => no(new Error("TradingView 스크립트를 불러오지 못했습니다"));
+    document.head.appendChild(el);
+  });
+  return tvReady;
+}
+let tvSeq = 0;
+let CHART_N = 4;                    // 한 화면에 몇 칸
+let chartsDrawn = false;            // 첫 스캔 뒤 한 번만 자동으로 띄운다
+const CHART_COLS = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2], 9:[3,3] };
+
+async function drawCharts(){
+  const grid = document.getElementById("chart-grid");
+  const empty = document.getElementById("chart-empty");
+  const raw = document.getElementById("chart-syms").value.trim();
+  const tf = document.getElementById("chart-tf").value;
+  let syms = raw ? raw.split(/[,\s]+/).filter(Boolean).map(x => x.toUpperCase())
+                 : ROWS.slice(0, CHART_N).map(r => r.sym);
+  if (!syms.length){
+    empty.textContent = "통과 종목이 아직 없습니다. 종목을 직접 적어 주세요.";
+    empty.style.display = ""; return;
+  }
+  // 칸이 종목보다 많으면 칸을 줄이고, 종목이 많으면 앞에서 자른다
+  const n = Math.min(CHART_N, syms.length);
+  syms = syms.slice(0, n);
+  const box = CHART_COLS[n] || CHART_COLS[4];
+  const cols = box[0], rows = box[1];
+
+  empty.style.display = "none";
+  grid.innerHTML = "";
+  grid.style.gridTemplateColumns = "repeat(" + cols + ",minmax(0,1fr))";
+  grid.style.gridTemplateRows = "repeat(" + rows + ",minmax(0,1fr))";
+  // 전체화면이 아니면 한 칸 높이를 정해 페이지가 무한정 길어지지 않게 한다
+  const full = document.body.classList.contains("chartfull");
+  grid.style.height = full ? "" : (rows === 1 ? 440 : rows === 2 ? 760 : 960) + "px";
+
+  document.getElementById("chart-meta").textContent = syms.join(" · ") + " · " +
+    ({1:"1분",5:"5분",15:"15분",60:"1시간",240:"4시간",D:"일봉"}[tf] || tf) +
+    " · 더블클릭하면 그 칸만 커집니다";
+
+  try{ await loadTV(); }
+  catch(e){
+    grid.innerHTML = "";
+    empty.textContent = e.message; empty.style.display = ""; return;
+  }
+
+  let solo = null;
+  syms.forEach(function(sym){
+    const id = "tvw" + (tvSeq++);
+    const cell = document.createElement("div");
+    const cap = document.createElement("div");
+    cap.className = "cap"; cap.textContent = sym;
+    const host = document.createElement("div");
+    host.id = id; host.style.height = "100%";
+    cell.appendChild(cap); cell.appendChild(host); grid.appendChild(cell);
+    // 더블클릭 = 그 칸만 크게 / 다시 누르면 원래대로.
+    // 차트 안쪽(iframe) 조작은 방해하지 않는다.
+    cell.addEventListener("dblclick", function(e){
+      if (e.target.closest("iframe")) return;
+      const cells = [].slice.call(grid.children);
+      if (solo === cell){
+        cells.forEach(function(c){ c.style.display = ""; c.classList.remove("solo"); });
+        solo = null;
+      } else {
+        cells.forEach(function(c){
+          c.style.display = c === cell ? "" : "none";
+          c.classList.toggle("solo", c === cell);
+        });
+        solo = cell;
+      }
+    });
+    new TradingView.widget({
+      container_id: id, autosize: true,
+      symbol: "OKX:" + sym.replace(/USDT(\.P)?$/, "") + "USDT.P",
+      interval: tf, timezone: "Asia/Seoul", theme: "dark", style: "1", locale: "kr",
+      toolbar_bg: "#0D1016", hide_side_toolbar: true, allow_symbol_change: true,
+      save_image: false, withdateranges: false, details: false,
+      studies: ["BB@tv-basicstudies"]
+    });
+  });
+  chartsDrawn = true;
+}
+
+document.getElementById("chart-n").addEventListener("click", function(e){
+  const b = e.target.closest("button"); if (!b) return;
+  CHART_N = +b.dataset.n;
+  document.querySelectorAll("#chart-n button").forEach(function(x){
+    x.classList.toggle("on", +x.dataset.n === CHART_N);
+  });
+  drawCharts();
+});
+document.getElementById("btn-charts").addEventListener("click", drawCharts);
+document.getElementById("chart-tf").addEventListener("change", function(){
+  if (chartsDrawn) drawCharts();
+});
+document.getElementById("chart-syms").addEventListener("keydown", function(e){
+  if (e.key === "Enter") drawCharts();
+});
+document.getElementById("btn-charts-full").addEventListener("click", function(e){
+  document.body.classList.toggle("chartfull");
+  const on = document.body.classList.contains("chartfull");
+  e.target.textContent = on ? "전체화면 해제 (Esc)" : "전체화면";
+  drawCharts();
+});
+document.addEventListener("keydown", function(e){
+  if (e.key === "Escape" && document.body.classList.contains("chartfull")){
+    document.body.classList.remove("chartfull");
+    document.getElementById("btn-charts-full").textContent = "전체화면";
+    drawCharts();
+  }
+});
+
 /* ── 이벤트 ────────────────────────────────────────────────────── */
 document.getElementById("tbody").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
   OPEN_ROW = OPEN_ROW === tr.dataset.id ? null : tr.dataset.id;
   render();
+  if (OPEN_ROW) loadDeep(OPEN_ROW);
 });
 
 document.querySelectorAll("thead th[data-sort]").forEach(th => {
@@ -900,11 +1586,35 @@ document.querySelectorAll("thead th[data-sort]").forEach(th => {
   });
 });
 
+const PREF_KEY = "idea-screener-prefs-v1";
+const PREF_IDS = ["c-range","c-years","c-move","c-turnover","c-wave","c-interval",
+                  "c-equity","c-lev","c-risk","c-orders","c-span","c-spanval","c-tpmult"];
+function savePrefs(){
+  try{
+    const o = {};
+    for (const id of PREF_IDS){ const el = document.getElementById(id); if (el) o[id] = el.value; }
+    localStorage.setItem(PREF_KEY, JSON.stringify(o));
+  }catch(e){}
+}
+function loadPrefs(){
+  let o = null;
+  try{ o = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); }catch(e){}
+  if (!o) return;
+  for (const id of PREF_IDS){
+    const el = document.getElementById(id);
+    if (el && o[id] != null && o[id] !== ""){
+      el.value = o[id];
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+  }
+}
+
 const bind = (id, key, transform) => {
   document.getElementById(id).addEventListener("input", (e) => {
     const v = e.target.type === "number" ? parseFloat(e.target.value) : e.target.value;
     if (e.target.type === "number" && !isFinite(v)) return;
     CFG[key] = transform ? transform(v) : v;
+    savePrefs();
     if (key === "interval") startLive(); else render();
   });
 };
@@ -913,10 +1623,42 @@ bind("c-years", "minYears");
 bind("c-move", "maxMove", v => v / 100);
 bind("c-turnover", "minTurnover", v => v * 1e6);
 bind("c-interval", "interval");
+bind("c-equity", "equity");
+bind("c-risk", "risk");
+bind("c-lev", "lev");
+bind("c-orders", "orders");
+bind("c-span", "span");
+bind("c-spanval", "spanval");
+bind("c-tpmult", "tpmult");
+/* 종목 직접 조회 */
+const runManual = () => lookupManual(document.getElementById("m-sym").value);
+document.getElementById("btn-manual").addEventListener("click", runManual);
+document.getElementById("m-sym").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") runManual();
+});
+
+/* 프로그램 입력값 한 줄 복사 */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".copybtn");
+  if (!b) return;
+  e.stopPropagation();
+  const txt = b.dataset.copy || "";
+  const done = () => { const o = b.textContent; b.textContent = "복사됨";
+                       setTimeout(() => { b.textContent = o; }, 1200); };
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {});
+  else {
+    const ta = document.createElement("textarea");
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); done(); }catch(err){}
+    ta.remove();
+  }
+});
+
 document.getElementById("c-wave").addEventListener("change", (e) => {
   const v = parseFloat(e.target.value);
-  if (isFinite(v)) { CFG.waveHours = v; scanWaves(); }
+  if (isFinite(v)) { CFG.waveHours = v; savePrefs(); scanWaves(); }
 });
+loadPrefs();
 
 document.getElementById("btn-rescan").addEventListener("click", () => fullScan(true));
 
