@@ -823,8 +823,6 @@ async function scanWaves(){
   const el = document.getElementById("wave-ts");
   if (el) el.textContent = new Date().toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
   render();
-  // 매번 다시 그리면 사용자가 만진 차트가 초기화된다. 처음 한 번만.
-  if (!chartsDrawn && ROWS.length) drawCharts();
 }
 
 /* ── 다우이론 구조 ──────────────────────────────────────────────────
@@ -1325,6 +1323,9 @@ function render(){
   });
   tb.innerHTML = html.join("");
   renderManual();
+  // 통과 종목이 잡히는 순간 차트를 자동으로 띄운다. 한 번 성공하면 다시 그리지
+  // 않는다 — 매번 다시 그리면 사용자가 만져 놓은 차트가 초기화된다.
+  if (!chartsDrawn && !chartsBusy && ROWS.length) drawCharts();
 }
 
 /* ── 펀딩비 ────────────────────────────────────────────────────────── */
@@ -1461,10 +1462,18 @@ function loadTV(){
 }
 let tvSeq = 0;
 let CHART_N = 4;                    // 한 화면에 몇 칸
-let chartsDrawn = false;            // 첫 스캔 뒤 한 번만 자동으로 띄운다
+let chartsDrawn = false;            // 통과 종목이 잡히면 한 번만 자동으로 띄운다
+let chartsBusy = false;             // 동시에 두 번 돌면 서로 격자를 지운다
 const CHART_COLS = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2], 9:[3,3] };
 
 async function drawCharts(){
+  if (chartsBusy) return;
+  chartsBusy = true;
+  try{ await drawChartsInner(); }
+  finally{ chartsBusy = false; }
+}
+
+async function drawChartsInner(){
   const grid = document.getElementById("chart-grid");
   const empty = document.getElementById("chart-empty");
   const raw = document.getElementById("chart-syms").value.trim();
@@ -1533,7 +1542,7 @@ async function drawCharts(){
       studies: ["BB@tv-basicstudies"]
     });
   });
-  chartsDrawn = true;
+  chartsDrawn = grid.children.length > 0;
 }
 
 document.getElementById("chart-n").addEventListener("click", function(e){
