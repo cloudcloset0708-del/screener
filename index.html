@@ -374,6 +374,10 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       <div><h2>차트 한 화면</h2>
         <p id="chart-meta">통과 상위 종목을 한 창에서 봅니다. 더블클릭하면 그 칸만 커집니다.</p></div>
       <div class="chart-ctl">
+        <div class="seg" id="chart-src">
+          <button type="button" data-src="tv" class="on">트레이딩뷰</button>
+          <button type="button" data-src="okx">빠른 캔들</button>
+        </div>
         <div class="seg" id="chart-n">
           <button type="button" data-n="1">1</button>
           <button type="button" data-n="2">2</button>
@@ -398,7 +402,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
   <section id="cal-sec" style="margin-top:30px">
     <div class="sec-head">
       <div><h2>이번 주 경제 일정</h2>
-        <p id="cal-meta">별 3개(최고 중요도)만 · 한국 시간</p></div>
+        <p id="cal-meta">미국 · 별 3개(최고 중요도)만 · 한국 시간</p></div>
     </div>
     <div id="cal-box" class="surface calwrap"></div>
   </section>
@@ -1486,6 +1490,10 @@ document.getElementById("btn-fund").addEventListener("click", loadFunding);
    그래서 이미 쓰고 있는 OKX 공개 캔들 API 로 직접 그린다.
    외부 의존이 없어 즉시 뜨고, 4개든 9개든 똑같이 동작한다. */
 let CHART_N = 4;
+/* 기본은 트레이딩뷰 — 확대·이동·지표·그리기가 되기 때문이다.
+   'okx' 는 우리가 캔들을 직접 그리는 모드로, 즉시 뜨지만 조작은 안 된다.
+   트레이딩뷰가 느릴 때 대신 쓴다. */
+let CHART_SRC = "tv";
 let chartsAuto = 0;      // 자동으로 그린 칸 수
 let chartsManual = false; // 사용자가 직접 조작하면 자동 갱신을 멈춘다
 let chartsBusy = false;
@@ -1494,6 +1502,23 @@ const CHART_COLS = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2], 9:[3,3] };
 const TF_BAR = { "1":"1m", "5":"5m", "15":"15m", "60":"1H", "240":"4H", "D":"1D" };
 const TF_NAME = { "1":"1분", "5":"5분", "15":"15분", "60":"1시간", "240":"4시간", "D":"일봉" };
 const CANDLE_N = 130;
+
+/* tv.js 를 한 번만 읽는다. 칸마다 임베드 스크립트를 붙이면 여러 개가
+   동시에 뜨면서 같은 컨테이너를 서로 잡는다. container_id 를 명시한다. */
+let tvReady = null;
+function loadTV(){
+  if (tvReady) return tvReady;
+  tvReady = new Promise((ok, no) => {
+    if (window.TradingView) return ok();
+    const el = document.createElement("script");
+    el.src = "https://s3.tradingview.com/tv.js";
+    el.onload = ok;
+    el.onerror = () => no(new Error("TradingView 스크립트를 불러오지 못했습니다"));
+    document.head.appendChild(el);
+  });
+  return tvReady;
+}
+let tvSeq = 0;
 
 function niceStep(range, want){
   const raw = range / Math.max(1, want);
@@ -1637,18 +1662,50 @@ async function drawChartsInner(){
     syms.join(" · ") + " · " + (TF_NAME[tf] || tf) + " · OKX 시세 직접 렌더 · 더블클릭 = 그 칸만 크게";
 
   let solo = null;
+  const soloBind = (cell) => cell.addEventListener("dblclick", (ev) => {
+    if (ev.target.closest("iframe")) return;      // 차트 내부 조작은 방해하지 않는다
+    const all = [].slice.call(grid.children);
+    if (solo === cell){ all.forEach(c => { c.style.display = ""; c.classList.remove("solo"); }); solo = null; }
+    else { all.forEach(c => { c.style.display = c === cell ? "" : "none"; c.classList.toggle("solo", c === cell); }); solo = cell; }
+    requestAnimationFrame(() => all.forEach(c => {
+      if (c.firstChild && c.firstChild.tagName === "CANVAS") paint(c.firstChild);
+    }));
+  });
+
+  if (CHART_SRC === "tv"){
+    document.getElementById("chart-meta").textContent =
+      syms.join(" · ") + " · " + (TF_NAME[tf] || tf) + " · 트레이딩뷰 · 더블클릭 = 그 칸만 크게";
+    try{ await loadTV(); }
+    catch(e){ grid.innerHTML = ""; empty.textContent = e.message; empty.style.display = ""; return; }
+    syms.forEach((sym) => {
+      const id = "tvw" + (tvSeq++);
+      const cell = document.createElement("div");
+      const host = document.createElement("div");
+      host.id = id; host.style.height = "100%";
+      cell.appendChild(host);
+      soloBind(cell);
+      grid.appendChild(cell);
+      new TradingView.widget({
+        container_id: id, autosize: true,
+        symbol: "OKX:" + sym + "USDT.P",
+        interval: tf, timezone: "Asia/Seoul", theme: "dark", style: "1", locale: "kr",
+        toolbar_bg: "#0D1016", hide_side_toolbar: true, allow_symbol_change: true,
+        save_image: false, withdateranges: false, details: false,
+        studies: ["BB@tv-basicstudies"]
+      });
+    });
+    chartsAuto = grid.children.length;
+    clearTimeout(chartTimer);
+    return;
+  }
+
   const cells = syms.map((sym) => {
     const cell = document.createElement("div");
     const cv = document.createElement("canvas");
     cv.style.cssText = "display:block;width:100%;height:100%";
     cv.__sym = sym; cv.__tf = tf; cv.__cs = null;
     cell.appendChild(cv);
-    cell.addEventListener("dblclick", () => {
-      const all = [].slice.call(grid.children);
-      if (solo === cell){ all.forEach(c => { c.style.display = ""; c.classList.remove("solo"); }); solo = null; }
-      else { all.forEach(c => { c.style.display = c === cell ? "" : "none"; c.classList.toggle("solo", c === cell); }); solo = cell; }
-      requestAnimationFrame(() => all.forEach(c => paint(c.firstChild)));
-    });
+    soloBind(cell);
     cv.addEventListener("mousemove", (e) => paint(cv, e.offsetX));
     cv.addEventListener("mouseleave", () => paint(cv));
     grid.appendChild(cell);
@@ -1675,7 +1732,8 @@ async function drawChartsInner(){
 /* 30초마다 같은 칸을 다시 채운다. 격자를 새로 만들지 않아 solo 상태가 유지된다. */
 async function refreshCharts(){
   const grid = document.getElementById("chart-grid");
-  const cvs = [].slice.call(grid.children).map(c => c.firstChild).filter(c => c && c.__sym);
+  const cvs = [].slice.call(grid.children).map(c => c.firstChild)
+                .filter(c => c && c.tagName === "CANVAS" && c.__sym);
   if (cvs.length && !document.hidden){
     await pool(cvs, 4, async (cv) => {
       try{
@@ -1691,7 +1749,9 @@ async function refreshCharts(){
 
 window.addEventListener("resize", () => {
   const grid = document.getElementById("chart-grid");
-  [].slice.call(grid.children).forEach(c => c.firstChild && paint(c.firstChild));
+  [].slice.call(grid.children).forEach(c => {
+    if (c.firstChild && c.firstChild.tagName === "CANVAS") paint(c.firstChild);
+  });
 });
 
 document.getElementById("chart-n").addEventListener("click", (e) => {
@@ -1700,6 +1760,14 @@ document.getElementById("chart-n").addEventListener("click", (e) => {
   CHART_N = +b.dataset.n;
   document.querySelectorAll("#chart-n button").forEach(x =>
     x.classList.toggle("on", +x.dataset.n === CHART_N));
+  drawCharts();
+});
+document.getElementById("chart-src").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  chartsManual = true;
+  CHART_SRC = b.dataset.src;
+  document.querySelectorAll("#chart-src button").forEach(x =>
+    x.classList.toggle("on", x.dataset.src === CHART_SRC));
   drawCharts();
 });
 document.getElementById("btn-charts").addEventListener("click", () => { chartsManual = true; drawCharts(); });
@@ -1794,8 +1862,8 @@ document.getElementById("btn-manual").addEventListener("click", runManual);
    인베스팅 위젯을 붙여 봤으나 제공처가 도메인을 막으면 통째로 빈 화면이 된다.
    그래서 일정은 배포 시점에 파일에 박아 두고 여기서 직접 그린다.
    시각 문자열에 오프셋이 들어 있어 브라우저가 알아서 한국 시간으로 바꾼다. */
-const CAL_EVENTS = [{"t": "2026-09-10T08:15:00-04:00", "c": "EUR", "n": "ECB 기준금리", "f": "2.65%", "p": "2.40%"}, {"t": "2026-09-10T08:15:00-04:00", "c": "EUR", "n": "ECB 통화정책 성명", "f": "", "p": ""}, {"t": "2026-09-10T08:30:00-04:00", "c": "USD", "n": "근원 PPI (전월비)", "f": "0.3%", "p": "0.2%"}, {"t": "2026-09-10T08:30:00-04:00", "c": "USD", "n": "PPI (전월비)", "f": "0.4%", "p": "0.0%"}, {"t": "2026-09-10T08:45:00-04:00", "c": "EUR", "n": "ECB 기자회견", "f": "", "p": ""}, {"t": "2026-09-11T02:00:00-04:00", "c": "GBP", "n": "GDP (전월비)", "f": "0.0%", "p": "0.3%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "근원 CPI (전월비)", "f": "0.2%", "p": "0.2%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "근원 CPI (전년비)", "f": "2.4%", "p": "2.5%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "CPI (전월비)", "f": "0.4%", "p": "0.1%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "CPI (전년비)", "f": "3.4%", "p": "3.4%"}];
-const CAL_BUILT = "2026-09-10 01:11";
+const CAL_EVENTS = [{"t": "2026-09-10T08:30:00-04:00", "c": "USD", "n": "근원 PPI (전월비)", "f": "0.3%", "p": "0.2%"}, {"t": "2026-09-10T08:30:00-04:00", "c": "USD", "n": "PPI (전월비)", "f": "0.4%", "p": "0.0%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "근원 CPI (전월비)", "f": "0.2%", "p": "0.2%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "근원 CPI (전년비)", "f": "2.4%", "p": "2.5%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "CPI (전월비)", "f": "0.4%", "p": "0.1%"}, {"t": "2026-09-11T08:30:00-04:00", "c": "USD", "n": "CPI (전년비)", "f": "3.4%", "p": "3.4%"}];
+const CAL_BUILT = "2026-09-10 01:48";
 const CAL_DOW = ["일","월","화","수","목","금","토"];
 
 function calLeft(ms){
@@ -1834,7 +1902,7 @@ function renderCal(){
   const meta = document.getElementById("cal-meta");
   if (meta && nextIdx >= 0){
     const e = rows[nextIdx], l = calLeft(e.ms - now);
-    meta.textContent = `별 3개(최고 중요도)만 · 한국 시간 · 다음: ${e.n} ${l.txt} 뒤`;
+    meta.textContent = `미국 · 별 3개(최고 중요도)만 · 한국 시간 · 다음: ${e.n} ${l.txt} 뒤`;
   }
 }
 renderCal();
