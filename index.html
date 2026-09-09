@@ -215,6 +215,14 @@ td.dim,.dim{color:var(--ink-3);font-size:11.5px}
 .seg button:last-child{border-right:0}
 .seg button:hover{background:rgba(255,255,255,.07);color:var(--ink)}
 .seg button.on{background:var(--accent);color:#0B0A18}
+/* 경제 일정 — 위젯이 밝은 배경만 지원해서 흰 카드에 얹는다 */
+.calbox{background:#FFF;border:1px solid var(--edge-2);border-radius:var(--r-lg);
+  overflow:hidden;padding:6px 6px 0}
+.calbox.hide{display:none}
+#cal-frame{display:block;width:100%;height:460px;border:0}
+.calcredit{margin:0;padding:6px 10px;font-size:10.5px;color:#6A7283;text-align:right;background:#FFF}
+.calcredit a{color:#5B4BD6;text-decoration:underline}
+.calnote{margin:9px 0 0;font-size:11.5px;color:var(--ink-3);line-height:1.7}
 .chartempty{margin-top:12px;padding:34px 20px;text-align:center;font-size:13px;color:var(--ink-3);
   border:1px dashed var(--edge-2);border-radius:12px}
 .chartgrid{display:grid;gap:1px;background:rgba(255,255,255,.09);
@@ -371,6 +379,26 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
     <div id="chart-empty" class="chartempty">차트 띄우기를 누르면 통과 상위 종목이 한 창에 뜹니다.</div>
   </section>
 
+  <section id="cal-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <div><h2>이번 주 경제 일정</h2>
+        <p>별 3개(매우 중요)만 · 미국 지표 · 한국 시간. 발표 전후 30분은 신규 진입을 피하십시오.</p></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button type="button" id="btn-cal">일정 접기</button>
+      </div>
+    </div>
+    <p class="calnote">위젯이 안 뜨면 제공처(Investing.com) 문제입니다 —
+      그때는 알려 주세요. OKX 공개 데이터처럼 우리가 직접 만들어 넣는 방식으로 바꾸겠습니다.</p>
+    <div id="cal-box" class="calbox">
+      <iframe id="cal-frame" title="이번 주 주요 경제 일정"
+        src="https://sslecal2.investing.com/?columns=exc_flags,exc_currency,exc_importance,exc_actual,exc_forecast,exc_previous&features=datepicker,timezone&countries=5&calType=week&timeZone=88&lang=1&importance=3"></iframe>
+      <div class="poweredBy calcredit">
+        <span>Real Time Economic Calendar provided by
+          <a href="https://www.investing.com/" rel="nofollow" target="_blank" class="underline_link">Investing.com</a>.</span>
+      </div>
+    </div>
+  </section>
+
   <section id="manual-sec" style="margin-top:30px">
     <div class="sec-head">
       <div><h2>종목 직접 조회</h2>
@@ -482,11 +510,13 @@ async function api(path, tries = 4){
 const mean = a => a.reduce((s,x) => s + x, 0) / a.length;
 function stdev(a){ const m = mean(a); return Math.sqrt(mean(a.map(x => (x - m) ** 2))); }
 
-function parseCandles(rows){
+function parseCandles(rows, keepOpen){
   // [ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]  — confirm!=="1" 은 진행 중인 봉
+  // 지표 계산은 확정봉만 쓴다. 차트는 진행 중인 봉까지 보여야 하므로 keepOpen 을 준다.
+  // (.then(parseCandles) 로 넘기면 인자가 하나뿐이라 기존 호출은 그대로 확정봉만 받는다)
   return rows
-    .filter(r => r[8] === "1")
-    .map(r => ({ ts:+r[0], o:+r[1], h:+r[2], l:+r[3], c:+r[4] }))
+    .filter(r => keepOpen || r[8] === "1")
+    .map(r => ({ ts:+r[0], o:+r[1], h:+r[2], l:+r[3], c:+r[4], v:+r[5] || 0 }))
     .sort((a,b) => a.ts - b.ts);
 }
 const wickDrop = c => c.h ? (c.h - c.l) / c.h : 0;
@@ -1323,9 +1353,11 @@ function render(){
   });
   tb.innerHTML = html.join("");
   renderManual();
-  // 통과 종목이 잡히는 순간 차트를 자동으로 띄운다. 한 번 성공하면 다시 그리지
-  // 않는다 — 매번 다시 그리면 사용자가 만져 놓은 차트가 초기화된다.
-  if (!chartsDrawn && !chartsBusy && ROWS.length) drawCharts();
+  // 차트 자동 표시. 스캔 도중에는 통과 목록이 아직 부분집합이라(1~2종목) 그리지
+  // 않는다 — 그 상태로 그리면 칸이 하나만 뜬 채로 굳는다.
+  // 사용자가 한 번이라도 직접 조작하면 그 뒤로는 손대지 않는다.
+  if (!chartsManual && !chartsBusy && !scanning && ROWS.length
+      && chartsAuto < Math.min(CHART_N, ROWS.length)) drawCharts();
 }
 
 /* ── 펀딩비 ────────────────────────────────────────────────────────── */
@@ -1444,27 +1476,128 @@ function renderFunding(){
 
 document.getElementById("btn-fund").addEventListener("click", loadFunding);
 
-/* ── 차트 한 화면 ──────────────────────────────────────────────────
-   TradingView 위젯은 container_id 를 명시해 만든다. 임베드 스크립트를
-   칸마다 붙이면 여러 개가 동시에 뜨면서 같은 컨테이너를 서로 잡는다. */
-let tvReady = null;
-function loadTV(){
-  if (tvReady) return tvReady;
-  tvReady = new Promise((ok, no) => {
-    if (window.TradingView) return ok();
-    const el = document.createElement("script");
-    el.src = "https://s3.tradingview.com/tv.js";
-    el.onload = ok;
-    el.onerror = () => no(new Error("TradingView 스크립트를 불러오지 못했습니다"));
-    document.head.appendChild(el);
-  });
-  return tvReady;
-}
-let tvSeq = 0;
-let CHART_N = 4;                    // 한 화면에 몇 칸
-let chartsDrawn = false;            // 통과 종목이 잡히면 한 번만 자동으로 띄운다
-let chartsBusy = false;             // 동시에 두 번 돌면 서로 격자를 지운다
+/* ── OKX 캔들 차트 (직접 렌더) ────────────────────────────────────
+   OKX 거래 화면은 X-Frame-Options: DENY 라 iframe 으로 못 가져온다.
+   TradingView 임베드는 4개를 동시에 띄우면 한둘만 데이터가 붙었다.
+   그래서 이미 쓰고 있는 OKX 공개 캔들 API 로 직접 그린다.
+   외부 의존이 없어 즉시 뜨고, 4개든 9개든 똑같이 동작한다. */
+let CHART_N = 4;
+let chartsAuto = 0;      // 자동으로 그린 칸 수
+let chartsManual = false; // 사용자가 직접 조작하면 자동 갱신을 멈춘다
+let chartsBusy = false;
+let chartTimer = null;
 const CHART_COLS = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2], 9:[3,3] };
+const TF_BAR = { "1":"1m", "5":"5m", "15":"15m", "60":"1H", "240":"4H", "D":"1D" };
+const TF_NAME = { "1":"1분", "5":"5분", "15":"15분", "60":"1시간", "240":"4시간", "D":"일봉" };
+const CANDLE_N = 130;
+
+function niceStep(range, want){
+  const raw = range / Math.max(1, want);
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const n = raw / mag;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * mag;
+}
+
+/* 캔들 하나를 그린다. cv.__cs 에 데이터를 얹어 두고 마우스 이동 때 다시 부른다. */
+function paint(cv, hoverX){
+  const cs = cv.__cs, sym = cv.__sym, tf = cv.__tf;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h || !cs || cs.length < 2) return;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  const g = cv.getContext("2d");
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+
+  const L = 6, R = 62, T = 30, B = 18;
+  const plotW = w - L - R, plotH = h - T - B;
+  const volH = Math.max(18, plotH * 0.17), priceH = plotH - volH - 6;
+
+  let hi = -Infinity, lo = Infinity, vmax = 0;
+  for (const c of cs){ if (c.h > hi) hi = c.h; if (c.l < lo) lo = c.l; if (c.v > vmax) vmax = c.v; }
+  const pad = (hi - lo) * 0.06 || hi * 0.001;
+  hi += pad; lo -= pad;
+  const y = (v) => T + priceH - (v - lo) / (hi - lo) * priceH;
+  const cw = plotW / cs.length;
+  const bw = Math.max(1, Math.min(9, cw * 0.62));
+
+  /* 가로 격자 + 우측 가격축 */
+  const step = niceStep(hi - lo, 4);
+  g.font = '10px "JetBrains Mono", monospace';
+  g.textBaseline = "middle";
+  for (let v = Math.ceil(lo / step) * step; v < hi; v += step){
+    const py = y(v);
+    g.strokeStyle = "rgba(255,255,255,.05)"; g.lineWidth = 1;
+    g.beginPath(); g.moveTo(L, py + .5); g.lineTo(L + plotW, py + .5); g.stroke();
+    g.fillStyle = "#828B9E"; g.textAlign = "left";
+    g.fillText(fmtPrice(v), L + plotW + 6, py);
+  }
+
+  /* 거래량 */
+  for (let i = 0; i < cs.length; i++){
+    const c = cs[i], x = L + i * cw;
+    const vh = vmax ? (c.v / vmax) * volH : 0;
+    g.fillStyle = c.c >= c.o ? "rgba(47,208,138,.30)" : "rgba(242,96,92,.30)";
+    g.fillRect(x + (cw - bw) / 2, T + plotH - vh, bw, vh);
+  }
+
+  /* 캔들 */
+  for (let i = 0; i < cs.length; i++){
+    const c = cs[i], x = L + i * cw + cw / 2;
+    const up = c.c >= c.o;
+    g.strokeStyle = g.fillStyle = up ? "#2FD08A" : "#F2605C";
+    g.lineWidth = 1;
+    g.beginPath(); g.moveTo(Math.round(x) + .5, y(c.h)); g.lineTo(Math.round(x) + .5, y(c.l)); g.stroke();
+    const yo = y(c.o), yc = y(c.c);
+    g.fillRect(x - bw / 2, Math.min(yo, yc), bw, Math.max(1, Math.abs(yc - yo)));
+  }
+
+  /* 현재가 */
+  const last = cs[cs.length - 1];
+  const ly = y(last.c), lastUp = last.c >= last.o;
+  g.strokeStyle = lastUp ? "rgba(47,208,138,.55)" : "rgba(242,96,92,.55)";
+  g.setLineDash([3, 3]); g.beginPath(); g.moveTo(L, ly + .5); g.lineTo(L + plotW, ly + .5); g.stroke();
+  g.setLineDash([]);
+  g.fillStyle = lastUp ? "#2FD08A" : "#F2605C";
+  g.fillRect(L + plotW + 2, ly - 8, R - 4, 16);
+  g.fillStyle = "#0A0C11"; g.textAlign = "left";
+  g.fillText(fmtPrice(last.c), L + plotW + 6, ly);
+
+  /* 머리글 */
+  const first = cs[0];
+  const chg = first.o ? (last.c - first.o) / first.o * 100 : 0;
+  g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.font = '600 12px "IBM Plex Sans KR", sans-serif';
+  g.fillStyle = "#F2F4F9";
+  g.fillText(sym, L + 4, 17);
+  let hx = L + 4 + g.measureText(sym).width + 8;   // 이어 붙일 때마다 실제 폭을 재서 민다
+  g.font = '10px "JetBrains Mono", monospace';
+  g.fillStyle = "#828B9E";
+  const tfTxt = TF_NAME[tf] || tf;
+  g.fillText(tfTxt, hx, 17);
+  hx += g.measureText(tfTxt).width + 10;
+  g.fillStyle = chg >= 0 ? "#2FD08A" : "#F2605C";
+  g.fillText((chg >= 0 ? "+" : "") + chg.toFixed(2) + "%", hx, 17);
+
+  /* 십자선 + 값 */
+  if (hoverX != null){
+    const i = Math.max(0, Math.min(cs.length - 1, Math.floor((hoverX - L) / cw)));
+    const c = cs[i], x = L + i * cw + cw / 2;
+    g.strokeStyle = "rgba(255,255,255,.22)"; g.setLineDash([2, 3]);
+    g.beginPath(); g.moveTo(Math.round(x) + .5, T); g.lineTo(Math.round(x) + .5, T + plotH); g.stroke();
+    g.setLineDash([]);
+    const t = new Date(c.ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+    const txt = `${t}  시 ${fmtPrice(c.o)}  고 ${fmtPrice(c.h)}  저 ${fmtPrice(c.l)}  종 ${fmtPrice(c.c)}`;
+    g.font = '10px "JetBrains Mono", monospace';
+    const tw = g.measureText(txt).width + 12;
+    const bx = Math.min(w - tw - 4, Math.max(4, x - tw / 2));
+    g.fillStyle = "rgba(10,12,17,.92)";
+    g.fillRect(bx, T - 26, tw, 18);
+    g.strokeStyle = "rgba(255,255,255,.12)"; g.strokeRect(bx + .5, T - 25.5, tw - 1, 17);
+    g.fillStyle = "#F2F4F9"; g.textBaseline = "middle";
+    g.fillText(txt, bx + 6, T - 17);
+  }
+}
 
 async function drawCharts(){
   if (chartsBusy) return;
@@ -1478,13 +1611,12 @@ async function drawChartsInner(){
   const empty = document.getElementById("chart-empty");
   const raw = document.getElementById("chart-syms").value.trim();
   const tf = document.getElementById("chart-tf").value;
-  let syms = raw ? raw.split(/[,\s]+/).filter(Boolean).map(x => x.toUpperCase())
+  let syms = raw ? raw.split(/[,\s]+/).filter(Boolean).map(x => x.toUpperCase().replace(/-?USDT(-SWAP)?$/, ""))
                  : ROWS.slice(0, CHART_N).map(r => r.sym);
   if (!syms.length){
     empty.textContent = "통과 종목이 아직 없습니다. 종목을 직접 적어 주세요.";
     empty.style.display = ""; return;
   }
-  // 칸이 종목보다 많으면 칸을 줄이고, 종목이 많으면 앞에서 자른다
   const n = Math.min(CHART_N, syms.length);
   syms = syms.slice(0, n);
   const box = CHART_COLS[n] || CHART_COLS[4];
@@ -1494,79 +1626,90 @@ async function drawChartsInner(){
   grid.innerHTML = "";
   grid.style.gridTemplateColumns = "repeat(" + cols + ",minmax(0,1fr))";
   grid.style.gridTemplateRows = "repeat(" + rows + ",minmax(0,1fr))";
-  // 전체화면이 아니면 한 칸 높이를 정해 페이지가 무한정 길어지지 않게 한다
   const full = document.body.classList.contains("chartfull");
-  grid.style.height = full ? "" : (rows === 1 ? 440 : rows === 2 ? 760 : 960) + "px";
+  grid.style.height = full ? "" : (rows === 1 ? 420 : rows === 2 ? 720 : 940) + "px";
 
-  document.getElementById("chart-meta").textContent = syms.join(" · ") + " · " +
-    ({1:"1분",5:"5분",15:"15분",60:"1시간",240:"4시간",D:"일봉"}[tf] || tf) +
-    " · 더블클릭하면 그 칸만 커집니다";
-
-  try{ await loadTV(); }
-  catch(e){
-    grid.innerHTML = "";
-    empty.textContent = e.message; empty.style.display = ""; return;
-  }
+  document.getElementById("chart-meta").textContent =
+    syms.join(" · ") + " · " + (TF_NAME[tf] || tf) + " · OKX 시세 직접 렌더 · 더블클릭 = 그 칸만 크게";
 
   let solo = null;
-  syms.forEach(function(sym){
-    const id = "tvw" + (tvSeq++);
+  const cells = syms.map((sym) => {
     const cell = document.createElement("div");
-    const cap = document.createElement("div");
-    cap.className = "cap"; cap.textContent = sym;
-    const host = document.createElement("div");
-    host.id = id; host.style.height = "100%";
-    cell.appendChild(cap); cell.appendChild(host); grid.appendChild(cell);
-    // 더블클릭 = 그 칸만 크게 / 다시 누르면 원래대로.
-    // 차트 안쪽(iframe) 조작은 방해하지 않는다.
-    cell.addEventListener("dblclick", function(e){
-      if (e.target.closest("iframe")) return;
-      const cells = [].slice.call(grid.children);
-      if (solo === cell){
-        cells.forEach(function(c){ c.style.display = ""; c.classList.remove("solo"); });
-        solo = null;
-      } else {
-        cells.forEach(function(c){
-          c.style.display = c === cell ? "" : "none";
-          c.classList.toggle("solo", c === cell);
-        });
-        solo = cell;
-      }
+    const cv = document.createElement("canvas");
+    cv.style.cssText = "display:block;width:100%;height:100%";
+    cv.__sym = sym; cv.__tf = tf; cv.__cs = null;
+    cell.appendChild(cv);
+    cell.addEventListener("dblclick", () => {
+      const all = [].slice.call(grid.children);
+      if (solo === cell){ all.forEach(c => { c.style.display = ""; c.classList.remove("solo"); }); solo = null; }
+      else { all.forEach(c => { c.style.display = c === cell ? "" : "none"; c.classList.toggle("solo", c === cell); }); solo = cell; }
+      requestAnimationFrame(() => all.forEach(c => paint(c.firstChild)));
     });
-    new TradingView.widget({
-      container_id: id, autosize: true,
-      symbol: "OKX:" + sym.replace(/USDT(\.P)?$/, "") + "USDT.P",
-      interval: tf, timezone: "Asia/Seoul", theme: "dark", style: "1", locale: "kr",
-      toolbar_bg: "#0D1016", hide_side_toolbar: true, allow_symbol_change: true,
-      save_image: false, withdateranges: false, details: false,
-      studies: ["BB@tv-basicstudies"]
-    });
+    cv.addEventListener("mousemove", (e) => paint(cv, e.offsetX));
+    cv.addEventListener("mouseleave", () => paint(cv));
+    grid.appendChild(cell);
+    return cv;
   });
-  chartsDrawn = grid.children.length > 0;
+
+  await pool(cells, 4, async (cv) => {
+    try{
+      cv.__cs = parseCandles(await api(
+        `/api/v5/market/candles?instId=${cv.__sym}-USDT-SWAP&bar=${TF_BAR[tf] || "5m"}&limit=${CANDLE_N}`), true);
+      paint(cv);
+    }catch(e){
+      const g = cv.getContext("2d");
+      g.fillStyle = "#F2605C"; g.font = '12px "IBM Plex Sans KR", sans-serif';
+      g.fillText(cv.__sym + " 시세를 받지 못했습니다", 12, 24);
+    }
+  }, () => {});
+
+  chartsAuto = grid.children.length;
+  clearTimeout(chartTimer);
+  chartTimer = setTimeout(refreshCharts, 30000);
 }
 
-document.getElementById("chart-n").addEventListener("click", function(e){
+/* 30초마다 같은 칸을 다시 채운다. 격자를 새로 만들지 않아 solo 상태가 유지된다. */
+async function refreshCharts(){
+  const grid = document.getElementById("chart-grid");
+  const cvs = [].slice.call(grid.children).map(c => c.firstChild).filter(c => c && c.__sym);
+  if (cvs.length && !document.hidden){
+    await pool(cvs, 4, async (cv) => {
+      try{
+        cv.__cs = parseCandles(await api(
+          `/api/v5/market/candles?instId=${cv.__sym}-USDT-SWAP&bar=${TF_BAR[cv.__tf] || "5m"}&limit=${CANDLE_N}`), true);
+        paint(cv);
+      }catch(e){}
+    }, () => {});
+  }
+  clearTimeout(chartTimer);
+  chartTimer = setTimeout(refreshCharts, 30000);
+}
+
+window.addEventListener("resize", () => {
+  const grid = document.getElementById("chart-grid");
+  [].slice.call(grid.children).forEach(c => c.firstChild && paint(c.firstChild));
+});
+
+document.getElementById("chart-n").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
+  chartsManual = true;
   CHART_N = +b.dataset.n;
-  document.querySelectorAll("#chart-n button").forEach(function(x){
-    x.classList.toggle("on", +x.dataset.n === CHART_N);
-  });
+  document.querySelectorAll("#chart-n button").forEach(x =>
+    x.classList.toggle("on", +x.dataset.n === CHART_N));
   drawCharts();
 });
-document.getElementById("btn-charts").addEventListener("click", drawCharts);
-document.getElementById("chart-tf").addEventListener("change", function(){
-  if (chartsDrawn) drawCharts();
+document.getElementById("btn-charts").addEventListener("click", () => { chartsManual = true; drawCharts(); });
+document.getElementById("chart-tf").addEventListener("change", () => { chartsManual = true; drawCharts(); });
+document.getElementById("chart-syms").addEventListener("keydown", (e) => {
+  if (e.key === "Enter"){ chartsManual = true; drawCharts(); }
 });
-document.getElementById("chart-syms").addEventListener("keydown", function(e){
-  if (e.key === "Enter") drawCharts();
-});
-document.getElementById("btn-charts-full").addEventListener("click", function(e){
+document.getElementById("btn-charts-full").addEventListener("click", (e) => {
   document.body.classList.toggle("chartfull");
   const on = document.body.classList.contains("chartfull");
   e.target.textContent = on ? "전체화면 해제 (Esc)" : "전체화면";
   drawCharts();
 });
-document.addEventListener("keydown", function(e){
+document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && document.body.classList.contains("chartfull")){
     document.body.classList.remove("chartfull");
     document.getElementById("btn-charts-full").textContent = "전체화면";
@@ -1642,6 +1785,11 @@ bind("c-tpmult", "tpmult");
 /* 종목 직접 조회 */
 const runManual = () => lookupManual(document.getElementById("m-sym").value);
 document.getElementById("btn-manual").addEventListener("click", runManual);
+document.getElementById("btn-cal").addEventListener("click", (e) => {
+  const box = document.getElementById("cal-box");
+  box.classList.toggle("hide");
+  e.target.textContent = box.classList.contains("hide") ? "일정 펼치기" : "일정 접기";
+});
 document.getElementById("m-sym").addEventListener("keydown", (e) => {
   if (e.key === "Enter") runManual();
 });
