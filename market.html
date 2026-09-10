@@ -174,6 +174,11 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     </select>
     <label for="minv">최소 거래대금(백만)</label>
     <input type="number" id="minv" value="3" step="1" min="0" style="width:76px">
+    <label>등락 기준</label>
+    <div class="seg" id="seg-basis">
+      <button type="button" data-v="day" class="on">당일</button>
+      <button type="button" data-v="h24">24시간</button>
+    </div>
     <div class="seg" id="seg-color" style="margin-left:auto">
       <button type="button" data-v="west" class="on">초록=상승</button>
       <button type="button" data-v="kr">빨강=상승</button>
@@ -185,7 +190,9 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
 
   <div id="detail"></div>
 
-  <p class="note">칸 크기는 선택한 기준(거래대금 또는 24시간 변동폭), 색은 24시간 등락률입니다.
+  <p class="note">등락률은 기본이 <b>당일(UTC 0시 기준)</b> — OKX 화면의 Change 와 같은 값입니다.
+    <b>24시간</b>으로 바꾸면 정확히 24시간 전 대비가 됩니다. 급등 뒤 급락한 날에는 두 값의 부호가 반대일 수 있습니다.
+    칸 크기는 선택한 정렬 기준입니다.
     칸을 누르면 그 종목의 <b>자금 흐름·펀딩·거미줄 세팅</b>이 아래에 펼쳐집니다.
     모든 수치는 OKX 공개 API에서 직접 받아옵니다 — 인증 없음, 저장 없음.</p>
 </div>
@@ -204,7 +211,8 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
   };
   /* 먼저 변동성으로 거르고(vol), 그 안에서 순위를 매긴다(rank).
      "고변동성 종목 중 거래대금이 큰 것" 이 거미줄 종목 선정의 실제 질문이다. */
-  const CFG = { rank:"turnover", vol:0, n:10, minv:3e6, color:"west" };
+  const CFG = { rank:"turnover", vol:0, n:10, minv:3e6, color:"west", basis:"day" };
+  const BASIS = { day:"당일 (UTC 0시)", h24:"24시간 전 대비" };
 
   let INST = {};       // instId -> {tickSz}
   let ROWS = [];       // 계산된 종목 목록
@@ -293,16 +301,22 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
         if (i.state === "live" && i.settleCcy === "USDT" && i.ctType === "linear")
           INST[i.instId] = { tickSz:+i.tickSz || 0, ctVal:+i.ctVal || 1 };
       }
+      /* OKX 화면의 Change 는 'UTC 0시 기준 당일 등락률'(sodUtc0)이다.
+         open24h(24시간 전 대비 롤링)를 쓰면 화면과 부호까지 달라진다 —
+         IOST 가 OKX 에서 -41% 인데 여기서는 +17% 로 보였던 원인. */
       ROWS = tk.filter(t => INST[t.instId]).map(t => {
-        const last = +t.last, lo = +t.low24h, hi = +t.high24h, op = +t.open24h;
+        const last = +t.last, lo = +t.low24h, hi = +t.high24h;
+        const op = +t.open24h, sod = +t.sodUtc0;
         return {
           instId: t.instId, sym: t.instId.replace("-USDT-SWAP",""),
           last, hi, lo,
-          chg: op ? (last - op) / op * 100 : 0,
+          chgDay: sod ? (last - sod) / sod * 100 : 0,   // OKX 화면과 같은 값
+          chg24:  op  ? (last - op)  / op  * 100 : 0,   // 24시간 전 대비
           range: lo ? (hi - lo) / lo * 100 : 0,
           turnover: (+t.volCcy24h || 0) * last,
         };
       }).filter(r => r.last > 0 && r.turnover >= CFG.minv);
+      ROWS.forEach(r => { r.chg = CFG.basis === "day" ? r.chgDay : r.chg24; });
       draw();
     }catch(e){
       $("map").innerHTML = "";
@@ -340,7 +354,8 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     $("legend").innerHTML = `<span>24h 등락</span><span class="sw">${
       steps.map(s => `<i style="background:${tileColor(s)}"></i>`).join("")}</span>
       <span>−10% … 0 … +10%</span>
-      <span style="margin-left:14px">칸 크기 = <b style="color:var(--ink-2)">${R.label}</b> ·
+      <span style="margin-left:14px">등락 = <b style="color:var(--ink-2)">${BASIS[CFG.basis]}</b> ·
+        칸 크기 = <b style="color:var(--ink-2)">${R.label}</b> ·
         ${CFG.vol ? `24h 변동폭 <b style="color:var(--ink-2)">${CFG.vol}% 이상</b> ${pool.length}종목 중 ` : ""}상위 ${list.length}개</span>
       ${CFG.vol && pool.length < CFG.n ? `<span style="color:var(--warn)">조건을 만족하는 종목이 ${pool.length}개뿐입니다</span>` : ""}`;
   }
@@ -614,6 +629,10 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
         </div>
 
         <dl class="stats">
+          ${st("당일 등락", pct(r.chgDay), "UTC 0시 기준 · OKX 화면과 같음",
+                r.chgDay >= 0 ? "pos" : "neg")}
+          ${st("24시간 등락", pct(r.chg24), "24시간 전 대비",
+                r.chg24 >= 0 ? "pos" : "neg")}
           ${st("24h 고 / 저", `${fmtP(r.hi)} / ${fmtP(r.lo)}`, `변동폭 ${r.range.toFixed(1)}%`)}
           ${st("24h 거래대금", mil(r.turnover), oiUsd ? `미결제 ${mil(oiUsd)}` : "")}
           ${w6 ? st("되돌림", w6.swings.toFixed(1) + "회/h", "6시간 기준") : ""}
@@ -694,7 +713,8 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
 
     const txt = () => {
       const L = [`${base}-USDT-SWAP · OKX · ${new Date().toLocaleString("ko-KR")} 기준`,
-        `현재가 ${fmtP(r.last)} / 24h ${pct(r.chg)} / 24h 고저 ${fmtP(r.hi)}~${fmtP(r.lo)} (변동폭 ${r.range.toFixed(1)}%)`,
+        `현재가 ${fmtP(r.last)} / 당일 ${pct(r.chgDay)} (UTC 0시 기준) / 24시간 ${pct(r.chg24)}`,
+        `24h 고저 ${fmtP(r.hi)}~${fmtP(r.lo)} (변동폭 ${r.range.toFixed(1)}%)`,
         `24h 거래대금 ${mil(r.turnover)}${oiUsd ? ` / 미결제약정 ${mil(oiUsd)}` : ""}`];
       if (w6) L.push(`되돌림 ${w6.swings.toFixed(2)}회/h · 방향성 ${w6.directionality.toFixed(3)} (0.13 미만이면 잔파동) · 6시간 레인지 ${span.toFixed(2)}%`);
       L.push(`역행폭 롱 ${m.down.toFixed(2)}% / 숏 ${m.up.toFixed(2)}% · 15분 평균진폭 ${atr.toFixed(2)}%`);
@@ -741,6 +761,13 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     redraw ? draw() : load();
   });
   segBind("seg-rank", "rank", true);
+  $("seg-basis").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    CFG.basis = b.dataset.v;
+    [].forEach.call($("seg-basis").children, (x) => x.classList.toggle("on", x === b));
+    ROWS.forEach(r => { r.chg = CFG.basis === "day" ? r.chgDay : r.chg24; });
+    draw();
+  });
   $("seg-vol").addEventListener("click", (e) => {
     const b = e.target.closest("button"); if (!b) return;
     CFG.vol = +b.dataset.v;
