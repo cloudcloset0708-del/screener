@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>이데아랩 차트</title>
+<style>
+/* 한 창에 차트를 꽉 채운다. 여백은 격자선 1px 뿐이다. */
+:root{
+  --bg:#0A0C11; --line:rgba(255,255,255,.08); --ink:#E9ECF3; --dim:#7C8496;
+  --accent:#8B7CFF; --bar:36px;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);
+  font:13px/1.4 "IBM Plex Sans KR",system-ui,"Malgun Gothic",sans-serif;overflow:hidden}
+
+/* ── 상단 바 ─────────────────────────────────────────── */
+#bar{height:var(--bar);display:flex;align-items:center;gap:10px;padding:0 10px;
+  background:#0D1016;border-bottom:1px solid var(--line);
+  transition:margin-top .18s ease}
+body.hidebar #bar{margin-top:calc(var(--bar) * -1)}
+#bar .brand{display:flex;align-items:center;gap:6px;font-weight:600;font-size:12px;
+  letter-spacing:-.01em;white-space:nowrap}
+#bar .brand i{width:7px;height:7px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 10px rgba(139,124,255,.8);font-style:normal}
+.seg{display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--dim);font:inherit;font-size:12px;
+  padding:4px 9px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+.seg button.on{background:var(--accent);color:#0A0C11;font-weight:600}
+#syms{flex:1;min-width:120px;background:#12151D;border:1px solid var(--line);
+  border-radius:6px;color:var(--ink);font:inherit;font-size:12px;padding:5px 9px;outline:none}
+#syms:focus{border-color:var(--accent)}
+.lbl{color:var(--dim);font-size:11px;white-space:nowrap}
+.ghost{border:1px solid var(--line);background:transparent;color:var(--dim);
+  font:inherit;font-size:12px;padding:4px 9px;border-radius:6px;cursor:pointer;white-space:nowrap}
+.ghost:hover{background:rgba(255,255,255,.06);color:var(--ink)}
+a.ghost.nav{text-decoration:none;display:inline-flex;align-items:center;color:var(--accent-2);
+  border-color:rgba(139,124,255,.35)}
+a.ghost.nav:hover{background:rgba(139,124,255,.16);color:#fff}
+
+/* 바를 숨겼을 때 위쪽에 얇은 되살리기 띠 */
+#peek{position:fixed;top:0;left:0;right:0;height:5px;z-index:50;display:none}
+body.hidebar #peek{display:block}
+#peek:hover{background:linear-gradient(180deg,rgba(139,124,255,.5),transparent)}
+
+/* ── 격자 ────────────────────────────────────────────── */
+#grid{height:calc(100% - var(--bar));display:grid;gap:1px;background:var(--line);
+  transition:height .18s ease}
+body.hidebar #grid{height:100%}
+.cell{background:var(--bg);position:relative;min-width:0;min-height:0;overflow:hidden}
+.cell .tag{position:absolute;top:0;left:0;z-index:5;padding:2px 7px;font-size:10px;
+  font-weight:600;letter-spacing:.04em;color:var(--dim);background:rgba(10,12,17,.75);
+  border-bottom-right-radius:5px;pointer-events:none}
+.cell .tradingview-widget-container,.cell .tradingview-widget-container__widget{height:100%}
+
+#hint{position:fixed;right:10px;bottom:8px;color:var(--dim);font-size:11px;
+  background:rgba(10,12,17,.8);padding:3px 8px;border-radius:5px;z-index:40;
+  pointer-events:none;opacity:.7}
+</style>
+</head>
+<body>
+
+<div id="peek" title="위로 마우스를 올리면 도구막대 · H 키로 고정"></div>
+
+<div id="bar">
+  <div class="brand"><i></i>IDEA Lab</div>
+
+  <span class="lbl">배치</span>
+  <div class="seg" id="layout">
+    <button data-n="1">1</button>
+    <button data-n="2">2</button>
+    <button data-n="4" class="on">4</button>
+    <button data-n="6">6</button>
+    <button data-n="9">9</button>
+  </div>
+
+  <span class="lbl">봉</span>
+  <div class="seg" id="tf">
+    <button data-i="1">1m</button>
+    <button data-i="3">3m</button>
+    <button data-i="5" class="on">5m</button>
+    <button data-i="15">15m</button>
+    <button data-i="60">1H</button>
+    <button data-i="240">4H</button>
+    <button data-i="D">1D</button>
+  </div>
+
+  <input id="syms" spellcheck="false"
+         placeholder="종목을 쉼표로 (예: JUP, ARX, USELESS, TRUMP)">
+  <button class="ghost" id="apply">적용</button>
+  <button class="ghost" id="tools">보조도구</button>
+  <button class="ghost" id="hide">막대 숨기기 (H)</button>
+  <button class="ghost" id="full">전체화면 (F)</button>
+  <a class="ghost nav" href="./market.html">히트맵</a>
+  <a class="ghost nav" href="./index.html">스크리너</a>
+</div>
+
+<div id="grid"></div>
+<div id="hint">H 막대 · F 전체화면 · 더블클릭 크게</div>
+
+<script>
+(() => {
+  "use strict";
+  const KEY = "idea-charts-v1";
+  const COLS = { 1:[1,1], 2:[2,1], 4:[2,2], 6:[3,2], 9:[3,3] };
+
+  const def = { n:4, tf:"5", syms:["BTC","ETH","SOL","XRP"], side:false };
+  let st = def;
+  try { st = Object.assign({}, def, JSON.parse(localStorage.getItem(KEY) || "{}")); } catch (e) {}
+
+  /* 히트맵·스크리너에서 ?syms=IOST,USELESS,SOPH,RAY 로 넘어올 수 있다.
+     같은 도메인이라 그냥 주소로 주고받으면 된다. */
+  try {
+    const q = new URLSearchParams(location.search);
+    const raw = q.get("syms");
+    if (raw){
+      const v = raw.split(/[,\s]+/).map(x => x.trim().toUpperCase()
+                  .replace(/-?USDT(-SWAP)?$/, "")).filter(Boolean);
+      if (v.length){
+        st.syms = v;
+        st.n = [1,2,4,6,9].find(n => n >= v.length) || 9;
+      }
+    }
+    if (q.get("tf")) st.tf = q.get("tf");
+  } catch (e) {}
+
+  const $ = (s) => document.querySelector(s);
+  const grid = $("#grid");
+  let solo = null;                       // 더블클릭으로 하나만 크게 본 상태
+
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) {} };
+
+  /* OKX 무기한 선물은 TradingView 에서 OKX:{SYM}USDT.P 로 표기된다 */
+  const tvSymbol = (s) => {
+    s = (s || "").trim().toUpperCase();
+    if (!s) return "";
+    if (s.includes(":")) return s;                       // 사용자가 직접 지정
+    return `OKX:${s.replace(/USDT(\.P)?$/, "")}USDT.P`;
+  };
+
+  /* tv.js 를 한 번만 읽고 container_id 를 명시해 위젯을 만든다.
+     embed-widget 스크립트를 칸마다 붙이면 4개가 동시에 뜨면서
+     같은 컨테이너를 서로 잡아 첫 칸이 엉뚱한 종목(BTC)으로 뜬다. */
+  let tvReady = null;
+  function loadTV() {
+    if (tvReady) return tvReady;
+    tvReady = new Promise((ok, no) => {
+      if (window.TradingView) return ok();
+      const s = document.createElement("script");
+      s.src = "https://s3.tradingview.com/tv.js";
+      s.onload = ok;
+      s.onerror = () => no(new Error("TradingView 스크립트를 불러오지 못했습니다"));
+      document.head.appendChild(s);
+    });
+    return tvReady;
+  }
+
+  let seq = 0;
+  function widget(cell, sym) {
+    const id = "tvc" + (seq++);
+    const box = document.createElement("div");
+    box.id = id;
+    box.style.height = "100%";
+    cell.appendChild(box);
+    loadTV().then(() => {
+      new TradingView.widget({
+        container_id: id,
+        autosize: true,
+        symbol: tvSymbol(sym),
+        interval: st.tf,
+        timezone: "Asia/Seoul",
+        theme: "dark",
+        style: "1",
+        locale: "kr",
+        toolbar_bg: "#0D1016",
+        hide_side_toolbar: !st.side,
+        allow_symbol_change: true,
+        save_image: false,
+        withdateranges: false,
+        details: false,
+        studies: ["BB@tv-basicstudies"]
+      });
+    }).catch((e) => {
+      box.innerHTML = '<div style="padding:14px;color:#F2605C;font-size:12px">'
+        + e.message + '<br>인터넷 연결을 확인하세요.</div>';
+    });
+  }
+
+  function render() {
+    const [c, r] = COLS[st.n] || COLS[4];
+    grid.style.gridTemplateColumns = `repeat(${c},minmax(0,1fr))`;
+    grid.style.gridTemplateRows = `repeat(${r},minmax(0,1fr))`;
+    grid.innerHTML = "";
+    solo = null;
+    for (let i = 0; i < st.n; i++) {
+      const sym = st.syms[i] || st.syms[st.syms.length - 1] || "BTC";
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      const tag = document.createElement("div");
+      tag.className = "tag";
+      tag.textContent = sym.toUpperCase();
+      cell.appendChild(tag);
+      widget(cell, sym);
+      // 더블클릭 = 그 칸만 크게 / 다시 더블클릭 = 원래대로
+      cell.addEventListener("dblclick", (e) => {
+        if (e.target.closest("iframe")) return;          // 차트 내부 조작은 방해하지 않는다
+        if (solo === cell) { grid.querySelectorAll(".cell").forEach(x => x.style.display = "");
+                             solo = null; }
+        else { grid.querySelectorAll(".cell").forEach(x => x.style.display = x === cell ? "" : "none");
+               grid.style.gridTemplateColumns = "1fr"; grid.style.gridTemplateRows = "1fr";
+               solo = cell; }
+        if (!solo) { grid.style.gridTemplateColumns = `repeat(${c},minmax(0,1fr))`;
+                     grid.style.gridTemplateRows = `repeat(${r},minmax(0,1fr))`; }
+      });
+      grid.appendChild(cell);
+    }
+    $("#syms").value = st.syms.join(", ");
+    $("#tools").textContent = st.side ? "보조도구 끄기" : "보조도구";
+    document.querySelectorAll("#layout button").forEach(b =>
+      b.classList.toggle("on", +b.dataset.n === st.n));
+    document.querySelectorAll("#tf button").forEach(b =>
+      b.classList.toggle("on", b.dataset.i === st.tf));
+    save();
+  }
+
+  $("#layout").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    st.n = +b.dataset.n; render();
+  });
+  $("#tf").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    st.tf = b.dataset.i; render();
+  });
+  const applySyms = () => {
+    const v = $("#syms").value.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    if (v.length) { st.syms = v; if (v.length > st.n) {
+      st.n = [1,2,4,6,9].find(n => n >= v.length) || 9; } render(); }
+  };
+  $("#apply").addEventListener("click", applySyms);
+  $("#syms").addEventListener("keydown", (e) => { if (e.key === "Enter") applySyms(); });
+  $("#tools").addEventListener("click", () => { st.side = !st.side; render(); });
+  $("#hide").addEventListener("click", () => document.body.classList.toggle("hidebar"));
+  $("#peek").addEventListener("click", () => document.body.classList.remove("hidebar"));
+  $("#full").addEventListener("click", () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen().catch(() => {});
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target.tagName === "INPUT") return;
+    const k = e.key.toLowerCase();
+    if (k === "h") document.body.classList.toggle("hidebar");
+    if (k === "f") $("#full").click();
+    if (/^[12469]$/.test(k) && COLS[+k]) { st.n = +k; render(); }
+  });
+
+  render();
+  setTimeout(() => { const h = $("#hint"); if (h) h.style.display = "none"; }, 6000);
+})();
+</script>
+</body>
+</html>

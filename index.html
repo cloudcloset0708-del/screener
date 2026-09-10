@@ -327,6 +327,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       <div class="chip">통과<b class="num" id="chip-pass">—</b></div>
       <div class="chip">스캔<b class="num" id="chip-total">—</b></div>
       <a class="navlink" href="./market.html">시장 히트맵 →</a>
+      <a class="navlink" id="nav-charts" href="./charts.html">차트 4분할 →</a>
       <button type="button" id="btn-copy">텔레그램 문구 복사</button>
       <button type="button" class="primary" id="btn-rescan">다시 스캔</button>
     </div>
@@ -1354,6 +1355,9 @@ function render(){
   ROWS = passed;
 
   document.getElementById("chip-pass").textContent = passed.length;
+  const navC = document.getElementById("nav-charts");
+  if (navC && passed.length)
+    navC.href = "./charts.html?syms=" + passed.slice(0,4).map(r => r.sym).join(",");
   document.getElementById("chip-total").textContent = all.length;
   document.getElementById("s-pass").textContent = passed.length;
   document.getElementById("s-avg").textContent = passed.length
