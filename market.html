@@ -428,53 +428,81 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     g.fillText(fmtP(lo), P.l+pw+5, P.t+top);
   }
 
-  /* 매수 : 매도 한 줄 비율 막대 */
-  function splitBar(cv, buy, sell){
-    const { g, w, h } = prep(cv);
-    const tot = buy + sell; if (!tot) return;
-    const P = 6, barH = 30, y = h/2 - barH/2 - 6;
-    const bw = (w - P*2) * (buy/tot);
-    g.fillStyle = "#2FD08A"; g.fillRect(P, y, bw, barH);
-    g.fillStyle = "#F2605C"; g.fillRect(P+bw, y, (w-P*2)-bw, barH);
-    g.font = '600 12px "IBM Plex Sans KR", sans-serif'; g.textBaseline = "middle";
-    g.fillStyle = "#0A0C11"; g.textAlign = "left";
-    if (bw > 74) g.fillText(`매수 ${(buy/tot*100).toFixed(0)}%`, P+8, y+barH/2);
-    g.textAlign = "right";
-    if ((w-P*2)-bw > 74) g.fillText(`매도 ${(sell/tot*100).toFixed(0)}%`, w-P-8, y+barH/2);
-    g.font = '11px "JetBrains Mono", monospace'; g.fillStyle = "#828B9E";
-    g.textAlign = "left"; g.fillText(mil(buy), P, y+barH+16);
-    g.textAlign = "right"; g.fillText(mil(sell), w-P, y+barH+16);
+  /* 분당 거래량을 봉 방향으로 색칠한 막대 — 30분간 어느 쪽이 밀었는지 */
+  function pressure(cv, cs){
+    const { g, w, h } = prep(cv); if (!cs.length) return;
+    const P = { l:4, r:52, t:8, b:12 };
+    const pw = w-P.l-P.r, ph = h-P.t-P.b;
+    const mx = Math.max.apply(null, cs.map(c => c.v)) || 1;
+    const slot = pw/cs.length;
+    cs.forEach((c,i) => {
+      const bh = (c.v/mx)*ph;
+      g.fillStyle = c.c >= c.o ? "rgba(47,208,138,.75)" : "rgba(242,96,92,.75)";
+      g.fillRect(P.l + i*slot + slot*0.14, P.t+ph-bh, Math.max(1, slot*0.72), bh);
+    });
+    g.font = axisFont; g.fillStyle = "#828B9E"; g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillText(mil(mx), P.l+pw+5, P.t+4);
+    g.fillText("0", P.l+pw+5, P.t+ph-4);
   }
 
-  /* 호가 누적 깊이 — 왼쪽 매수, 오른쪽 매도 */
-  function depth(cv, bids, asks, ctVal){
-    const { g, w, h } = prep(cv); if (!bids.length || !asks.length) return;
-    const cv0 = ctVal || 1;
-    const P = { t:8, b:20 }, ph = h-P.t-P.b, half = w/2;
-    let bc = 0, ac = 0;
-    const B = bids.map(r => (bc += (+r[0])*(+r[1])*cv0));
-    const A = asks.map(r => (ac += (+r[0])*(+r[1])*cv0));
-    const mx = Math.max(bc, ac) || 1;
-    const area = (arr, dir, fill) => {
-      g.beginPath(); g.moveTo(half, P.t+ph);
-      arr.forEach((v,i) => g.lineTo(half + dir*(i+1)/arr.length*half, P.t+ph - (v/mx)*ph));
-      g.lineTo(half + dir*half, P.t+ph); g.closePath();
-      g.fillStyle = fill; g.fill();
+  /* 호가 불균형 추이 — 벽이 유지되는지를 보려면 한 번이 아니라 여러 번 재야 한다 */
+  let bookTimer = null, bookHist = [], bookInst = null;
+  function stopBooks(){ clearInterval(bookTimer); bookTimer = null; bookHist = []; bookInst = null; }
+  function startBooks(instId){
+    stopBooks();
+    bookInst = instId;
+    const tick = async () => {
+      if (bookInst !== instId) return;
+      let d = null;
+      try{ d = await api(`/api/v5/market/books?instId=${instId}&sz=25`); }catch(e){ return; }
+      if (!d || !d[0] || bookInst !== instId) return;
+      const cval = (INST[instId] || {}).ctVal || 1;
+      const bid = (d[0].bids || []).reduce((t,r) => t + (+r[0])*(+r[1])*cval, 0);
+      const ask = (d[0].asks || []).reduce((t,r) => t + (+r[0])*(+r[1])*cval, 0);
+      if (!ask) return;
+      bookHist.push({ bid, ask, r: bid/ask });
+      if (bookHist.length > 24) bookHist.shift();     // 8초 x 24 = 약 3분
+      bookRatio($("cv-bk"), bookHist);
+      const el = $("bk-sum"), win = $("bk-win");
+      const cur = bookHist[bookHist.length-1];
+      const avg = bookHist.reduce((t,x) => t + x.r, 0) / bookHist.length;
+      if (win) win.textContent = `8초마다 · ${bookHist.length}회 측정`;
+      if (el) el.innerHTML =
+        `현재 매수벽 <b class="pos">${mil(cur.bid)}</b> · 매도벽 <b class="neg">${mil(cur.ask)}</b> — ` +
+        (bookHist.length < 3
+          ? "추이를 모으는 중입니다"
+          : `평균 <b>${avg.toFixed(2)}배</b> ${avg >= 1.15 ? "(매수벽 우위)" : avg <= 0.87 ? "(매도벽 우위)" : "(균형)"}` +
+            ` · 벽은 취소되니 <b>유지되는지</b>를 보십시오`);
     };
-    area(B, -1, "rgba(47,208,138,.34)");
-    area(A, 1, "rgba(242,96,92,.34)");
-    g.strokeStyle = "rgba(255,255,255,.2)"; g.beginPath();
-    g.moveTo(half+.5, P.t); g.lineTo(half+.5, P.t+ph); g.stroke();
-    g.font = '600 11.5px "IBM Plex Sans KR", sans-serif'; g.textBaseline = "alphabetic";
-    g.fillStyle = "#2FD08A"; g.textAlign = "left";
-    g.fillText(`매수벽 ${mil(bc)}`, 4, h-6);
-    g.fillStyle = "#F2605C"; g.textAlign = "right";
-    g.fillText(`매도벽 ${mil(ac)}`, w-4, h-6);
-    const r = ac ? bc/ac : 1;
-    g.fillStyle = r >= 1.15 ? "#2FD08A" : r <= 0.87 ? "#F2605C" : "#828B9E";
-    g.textAlign = "center";
-    g.fillText(r >= 1.15 ? `매수 우위 ${r.toFixed(2)}배`
-             : r <= 0.87 ? `매도 우위 ${(1/r).toFixed(2)}배` : "균형", half, h-6);
+    tick();
+    bookTimer = setInterval(tick, 8000);
+  }
+
+  function bookRatio(cv, hist){
+    const { g, w, h } = prep(cv); if (!hist.length) return;
+    const P = { l:4, r:46, t:10, b:12 };
+    const pw = w-P.l-P.r, ph = h-P.t-P.b;
+    const rs = hist.map(x => x.r);
+    const m = Math.max(0.25, Math.max.apply(null, rs.map(v => Math.abs(v-1)))) * 1.15;
+    const lo = 1-m, hi = 1+m;
+    const Y = (v) => P.t + ph - ((v-lo)/(hi-lo))*ph;
+    g.strokeStyle = "rgba(255,255,255,.18)"; g.setLineDash([3,3]);
+    g.beginPath(); g.moveTo(P.l, Y(1)+.5); g.lineTo(P.l+pw, Y(1)+.5); g.stroke();
+    g.setLineDash([]);
+    if (rs.length === 1){
+      g.fillStyle = rs[0] >= 1 ? "#2FD08A" : "#F2605C";
+      g.beginPath(); g.arc(P.l+pw/2, Y(rs[0]), 3.5, 0, 7); g.fill();
+    } else {
+      for (let i = 1; i < rs.length; i++){
+        const x0 = P.l + (i-1)*(pw/(rs.length-1)), x1 = P.l + i*(pw/(rs.length-1));
+        g.strokeStyle = (rs[i-1]+rs[i])/2 >= 1 ? "#2FD08A" : "#F2605C";
+        g.lineWidth = 1.8; g.beginPath(); g.moveTo(x0, Y(rs[i-1])); g.lineTo(x1, Y(rs[i])); g.stroke();
+      }
+    }
+    g.font = axisFont; g.fillStyle = "#828B9E"; g.textAlign = "left"; g.textBaseline = "middle";
+    g.fillText(hi.toFixed(2) + "배", P.l+pw+5, P.t+4);
+    g.fillText("1.00", P.l+pw+5, Y(1));
+    g.fillText(lo.toFixed(2) + "배", P.l+pw+5, P.t+ph-4);
   }
 
   /* 매수/매도 쌍 막대 */
@@ -558,6 +586,7 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
 
   /* ── 상세 ───────────────────────────────────────────────────── */
   async function open(instId){
+    stopBooks();
     picked = instId; draw();
     const base = instId.replace("-USDT-SWAP","");
     const r = ROWS.find(x => x.instId === instId);
@@ -585,8 +614,10 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
        그래서 CORS 가 열린 엔드포인트로 같은 질문에 답한다:
          자금 유입 → 5분봉 가격+거래량 / 미는 쪽 → 최근 체결의 매수·매도 / 쏠림 → 호가 불균형 */
     const c5 = await soft(`/api/v5/market/candles?instId=${instId}&bar=5m&limit=60`);
-    const trd = await soft(`/api/v5/market/trades?instId=${instId}&limit=100`);
-    const bk  = await soft(`/api/v5/market/books?instId=${instId}&sz=25`);
+    /* 체결 100건은 활발한 종목에서 5~10초밖에 안 된다. 같은 종목을 두 번 재면
+       매도 78% 가 매수 87% 로 뒤집힐 만큼 표본이 짧아 방향 판단에 쓸 수 없었다.
+       대신 1분봉 30개(30분)의 '봉 방향별 거래량'으로 압력을 본다. */
+    const c1 = await soft(`/api/v5/market/candles?instId=${instId}&bar=1m&limit=30`);
 
     const cs = c15 ? parseC(c15, true) : [];
     const w6 = cs.length ? waves(cs, 6) : null;
@@ -656,14 +687,14 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
           <div class="cbox"><h4>가격 + 거래량 <span class="dim" style="font-weight:400">5분봉 · 5시간</span></h4>
             <p class="sub">흰 선 = 가격, 보라 막대 = 거래량. <b>거래량이 튀는데 가격이 안 가면</b> 물량이 소화되는 자리다</p>
             <canvas id="cv-pv"></canvas></div>
-          <div class="cbox"><h4>테이커 매수 / 매도 <span class="dim" id="trd-win" style="font-weight:400"></span></h4>
-            <p class="sub">시장가로 지금 가격을 미는 쪽. 한쪽 쏠림이 이어지면 사다리는 그 방향으로 쓸린다</p>
+          <div class="cbox"><h4>매수 / 매도 압력 <span class="dim" style="font-weight:400">1분봉 30개 · 30분</span></h4>
+            <p class="sub" id="prs-sum">분당 거래량을 봉 방향으로 나눈 값. <b>한쪽이 계속 두꺼우면</b> 그 방향으로 밀리는 중이다</p>
             <canvas id="cv-tv"></canvas></div>
           <div class="cbox"><h4>펀딩비 추이</h4>
             <p class="sub">0 위(초록) = 롱이 지불(롱 과밀), 0 아래(빨강) = 숏이 지불(숏 과밀). 방향 선택에 쓴다</p>
             <canvas id="cv-fr"></canvas></div>
-          <div class="cbox"><h4>호가 불균형 <span class="dim" style="font-weight:400">상위 25호가</span></h4>
-            <p class="sub">쌓인 지정가 물량. <b>매도벽이 두꺼우면</b> 위로 뚫기 어렵고, 매수벽이 두꺼우면 아래가 받쳐진다</p>
+          <div class="cbox"><h4>호가 불균형 추이 <span class="dim" id="bk-win" style="font-weight:400">8초마다 측정</span></h4>
+            <p class="sub" id="bk-sum">매수벽 ÷ 매도벽. <b>벽은 취소된다</b> — 한 번의 값이 아니라 유지되는지를 봐야 한다</p>
             <canvas id="cv-bk"></canvas></div>
         </div>
 
@@ -694,26 +725,21 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
       const a = parseC(c5, true);
       priceVol($("cv-pv"), a.map(x => x.c), a.map(x => x.v));
     } else empty("cv-pv");
-    if (trd && trd.length){
-      const cval = (INST[instId] || {}).ctVal || 1;
-      let buy = 0, sell = 0;
-      for (const t of trd){
-        const q = (+t.sz) * (+t.px) * cval;
-        if (t.side === "buy") buy += q; else sell += q;
-      }
-      splitBar($("cv-tv"), buy, sell);
-      const span = (+trd[0].ts - +trd[trd.length-1].ts) / 1000;
-      const w = $("trd-win");
-      if (w) w.textContent = span >= 60 ? `최근 ${Math.round(span/60)}분 · ${trd.length}체결`
-                                        : `최근 ${Math.round(span)}초 · ${trd.length}체결`;
+    if (c1 && c1.length){
+      const a = parseC(c1, true);
+      pressure($("cv-tv"), a);
+      let up = 0, dn = 0;
+      for (const c of a){ if (c.c >= c.o) up += c.v; else dn += c.v; }
+      const tot = up + dn, el = $("prs-sum");
+      if (el && tot) el.innerHTML =
+        `30분 합계 <b class="${up >= dn ? "pos" : "neg"}">상승봉 ${(up/tot*100).toFixed(0)}%</b>` +
+        ` · 하락봉 ${(dn/tot*100).toFixed(0)}% — 분당 거래량을 봉 방향으로 나눈 값입니다`;
     } else empty("cv-tv");
     if (frh && frh.length){
       const a = frh.slice().reverse().map(x => +x.realizedRate * 100);
       lineChart($("cv-fr"), a, { zero:true, fmt:(v) => v.toFixed(3) + "%" });
     } else empty("cv-fr");
-    if (bk && bk[0]){
-      depth($("cv-bk"), bk[0].bids || [], bk[0].asks || [], (INST[instId] || {}).ctVal || 1);
-    } else empty("cv-bk");
+    startBooks(instId);
 
     const txt = () => {
       const L = [`${base}-USDT-SWAP · OKX · ${new Date().toLocaleString("ko-KR")} 기준`,
@@ -734,7 +760,9 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
       else { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta);
              ta.select(); try{ document.execCommand("copy"); done(); }catch(err){} ta.remove(); }
     });
-    $("btn-close").addEventListener("click", () => { picked = null; $("detail").innerHTML = ""; draw(); });
+    $("btn-close").addEventListener("click", () => {
+      stopBooks(); picked = null; $("detail").innerHTML = ""; draw();
+    });
   }
 
   const st = (dt, dd, em, cls) =>
@@ -786,6 +814,11 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
   });
   $("btn-reload").addEventListener("click", load);
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(draw, 160); });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) stopBooks();
+    else if (picked) startBooks(picked);
+  });
 
   load();
   setInterval(() => { if (!document.hidden) load(); }, 60000);
