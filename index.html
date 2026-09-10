@@ -193,6 +193,11 @@ table.mini tr.bad td:first-child{color:#F5A6A3;font-weight:600}
 table.mini tr.bad td.num b{color:var(--loss)}
 table.mini.size tr.hl td:first-child{color:var(--accent-2);font-weight:600}
 .warnline{margin:8px 0 0;font-size:11px;color:var(--warn);line-height:1.5}
+.askrow{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:13px;
+  padding-top:12px;border-top:1px solid var(--edge)}
+.askbtn{font-size:12px;padding:6px 13px}
+.asklink{font-size:12px;color:var(--accent-2);text-decoration:none}
+.asklink:hover{text-decoration:underline}
 .sizecol h4.long{color:var(--gain)} .sizecol h4.short{color:var(--loss)}
 table.mini.wide td:first-child{color:var(--ink-2)}
 .deepgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;margin-top:12px}
@@ -1259,7 +1264,12 @@ function detailHtml(r){
       ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
     </div>
     ${sizingHtml(r)}
-    <div id="deep-${r.sym}">${deepHtml(r.instId)}</div>`;
+    <div id="deep-${r.sym}">${deepHtml(r.instId)}</div>
+    <div class="askrow">
+      <button type="button" class="copybtn askbtn" data-ask="${r.instId}">상담용 지표 복사</button>
+      <a class="asklink" href="https://claude.ai/code/artifact/065a203f-ec1e-45c5-9a8f-58bb06753cd0" target="_blank" rel="noopener">상담 화면 열기 &rarr;</a>
+      <span class="dim">복사한 뒤 상담 화면에 붙여넣으면 이 숫자를 근거로 답합니다.</span>
+    </div>`;
 }
 
 /* ── 종목 직접 조회 ───────────────────────────────────────────────
@@ -1977,11 +1987,42 @@ document.getElementById("m-sym").addEventListener("keydown", (e) => {
 });
 
 /* 프로그램 입력값 한 줄 복사 */
+/* 상담 화면(아티팩트)은 샌드박스라 거래소 API 를 직접 못 부른다.
+   그래서 여기서 지표를 텍스트로 뽑아 넘긴다. */
+function askText(instId){
+  const r = ROWS.find(x => x.instId === instId) || (MANUAL === instId && METRICS[instId] && TICKERS[instId]
+            ? judge(instId, METRICS[instId], TICKERS[instId]) : null);
+  if (!r) return "";
+  const inst = INSTMAP[instId] || {};
+  const sz = sizing(CS15[instId], r.last, CFG.equity, CFG.risk,
+                    { orders: CFG.orders, tpMult: CFG.tpmult, spanMode: CFG.span,
+                      spanFixed: CFG.spanval, lev: CFG.lev, tickSz: inst.tickSz, hours: CFG.waveHours });
+  const dw = DOWS[instId];
+  const L = [];
+  L.push(`${r.sym}-USDT-SWAP · OKX · ${new Date().toLocaleString("ko-KR")} 기준`);
+  L.push(`현재가 ${fmtPrice(r.last)} / 24h ${pct(r.chg)} / 24h 거래대금 ${(r.turnover/1e6).toFixed(1)}M USDT`);
+  L.push(`전일 변동성 ${(r.range*100).toFixed(1)}% / 20일선 대비 ${pct(r.midPct)} / 1년 최대등락 ${(r.maxMove1y*100).toFixed(1)}% / 차트 ${r.years.toFixed(1)}년`);
+  L.push(`되돌림 ${r.swingsPerHour.toFixed(2)}회/h · 방향성 ${r.directionality.toFixed(3)} (0.13 미만이면 잔파동) · 볼린저 위치 ${(r.bbPos*100).toFixed(0)}%`);
+  L.push(`스크리너 점수 ${r.score.toFixed(1)} / 추천 ${r.bias.label} (${r.bias.reason})`);
+  if (dw) L.push(`다우 구조(15분) ${dw.trend} · 고점 ${dw.hi} 저점 ${dw.lo}${dw.note ? " · " + dw.note : ""}`);
+  if (r.fund) L.push(`펀딩 ${(r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 → 하루 ${(r.fund.daily*100).toFixed(2)}% (${r.fund.daily<0?"숏이 지불, 롱 유리":"롱이 지불, 숏 유리"})`);
+  if (sz){
+    const k = sz.long, q = sz.short;
+    L.push(`역행폭(24×15분봉) 롱 낙폭 ${k.mae.toFixed(2)}% / 숏 상승폭 ${q.mae.toFixed(2)}% · 15분 평균진폭 ${sz.atr.toFixed(2)}%`);
+    L.push(`최근 ${sz.hours}시간 실제 레인지 ${sz.sessionRange.toFixed(2)}%`);
+    L.push(`거미줄 세팅(풀시드 ${CFG.equity} USDT · 주문 ${k.n}개 · 폭 ${k.span.toFixed(2)}%):`);
+    L.push(`  롱 - 주문 간격 ${k.gap.toFixed(4)}% / TP ${k.tp.toFixed(4)}% / 권장 배율 ${k.levMax}배 / 하단 도달 -${k.lossAtBottom.toFixed(2)} USDT (시드의 ${k.bottomPctSeed.toFixed(1)}%) / 청산가 ${fmtPrice(k.liqPx)}`);
+    L.push(`  숏 - 주문 간격 ${q.gap.toFixed(4)}% / TP ${q.tp.toFixed(4)}% / 권장 배율 ${q.levMax}배 / 하단 도달 -${q.lossAtBottom.toFixed(2)} USDT (시드의 ${q.bottomPctSeed.toFixed(1)}%) / 청산가 ${fmtPrice(q.liqPx)}`);
+  }
+  L.push(`조건 검사: ${r.checks.map(c => (c.ok ? "O " : "X ") + c.name + " " + c.detail).join(" | ")}`);
+  return L.join(String.fromCharCode(10));
+}
+
 document.addEventListener("click", (e) => {
   const b = e.target.closest(".copybtn");
   if (!b) return;
   e.stopPropagation();
-  const txt = b.dataset.copy || "";
+  const txt = b.dataset.ask ? askText(b.dataset.ask) : (b.dataset.copy || "");
   const done = () => { const o = b.textContent; b.textContent = "복사됨";
                        setTimeout(() => { b.textContent = o; }, 1200); };
   if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => {});
