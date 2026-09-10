@@ -144,7 +144,8 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
   <header class="top">
     <div class="brand"><span class="dot"></span><b>이데아랩 시장 히트맵</b><span>OKX USDT PERP</span></div>
     <div class="topright">
-      <div class="chip">종목<b id="c-n">—</b></div>
+      <div class="chip">변동성 통과<b id="c-pool">—</b></div>
+      <div class="chip">표시<b id="c-n">—</b></div>
       <div class="chip">갱신<b class="num" id="c-ts">—</b></div>
       <a class="navlink" href="./index.html">스크리너 →</a>
       <button type="button" class="primary" id="btn-reload">새로고침</button>
@@ -154,7 +155,14 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
   <div id="error"></div>
 
   <div class="bar">
-    <label>분류</label>
+    <label>변동성 필터</label>
+    <div class="seg" id="seg-vol">
+      <button type="button" data-v="0" class="on">전체</button>
+      <button type="button" data-v="10">10%↑</button>
+      <button type="button" data-v="20">20%↑</button>
+      <button type="button" data-v="30">30%↑</button>
+    </div>
+    <label>정렬</label>
     <div class="seg" id="seg-rank">
       <button type="button" data-v="turnover" class="on">거래대금 순위</button>
       <button type="button" data-v="gain">상승률 순위</button>
@@ -194,7 +202,9 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     gain:     { label:"24시간 상승률",   key:(r) => r.chg,       size:(r) => Math.max(r.chg, 0.05) },
     range:    { label:"24시간 변동폭",   key:(r) => r.range,     size:(r) => r.range },
   };
-  const CFG = { rank:"turnover", n:10, minv:3e6, color:"west" };
+  /* 먼저 변동성으로 거르고(vol), 그 안에서 순위를 매긴다(rank).
+     "고변동성 종목 중 거래대금이 큰 것" 이 거미줄 종목 선정의 실제 질문이다. */
+  const CFG = { rank:"turnover", vol:0, n:10, minv:3e6, color:"west" };
 
   let INST = {};       // instId -> {tickSz}
   let ROWS = [];       // 계산된 종목 목록
@@ -303,7 +313,9 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
 
   function draw(){
     const R = RANKS[CFG.rank] || RANKS.turnover;
-    const list = ROWS.slice().sort((a,b) => R.key(b) - R.key(a)).slice(0, CFG.n);
+    const pool = CFG.vol ? ROWS.filter(r => r.range >= CFG.vol) : ROWS;
+    const list = pool.slice().sort((a,b) => R.key(b) - R.key(a)).slice(0, CFG.n);
+    $("c-pool").textContent = CFG.vol ? `${pool.length}종목` : "전체";
     const val = R.size;
     /* 값 차이가 100배를 넘으면 작은 칸이 실처럼 눌린다. 제곱근으로 눌러 준다. */
     const data = list.map(r => Object.assign({}, r, { v: Math.sqrt(Math.max(val(r), 1e-6)) }));
@@ -329,7 +341,8 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
       steps.map(s => `<i style="background:${tileColor(s)}"></i>`).join("")}</span>
       <span>−10% … 0 … +10%</span>
       <span style="margin-left:14px">칸 크기 = <b style="color:var(--ink-2)">${R.label}</b> ·
-        상위 ${list.length}종목</span>`;
+        ${CFG.vol ? `24h 변동폭 <b style="color:var(--ink-2)">${CFG.vol}% 이상</b> ${pool.length}종목 중 ` : ""}상위 ${list.length}개</span>
+      ${CFG.vol && pool.length < CFG.n ? `<span style="color:var(--warn)">조건을 만족하는 종목이 ${pool.length}개뿐입니다</span>` : ""}`;
   }
 
   /* ── 미니 차트 ──────────────────────────────────────────────── */
@@ -728,6 +741,12 @@ table.mini td.num em{display:block;font-style:normal;font-size:10.5px;color:var(
     redraw ? draw() : load();
   });
   segBind("seg-rank", "rank", true);
+  $("seg-vol").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    CFG.vol = +b.dataset.v;
+    [].forEach.call($("seg-vol").children, (x) => x.classList.toggle("on", x === b));
+    draw();
+  });
   segBind("seg-color", "color", true);
   $("cnt").addEventListener("change", (e) => { CFG.n = +e.target.value; draw(); });
   $("minv").addEventListener("change", (e) => {
