@@ -48,6 +48,9 @@ body{
 .chip{display:flex;align-items:baseline;gap:7px;background:var(--panel);border:1px solid var(--edge);
   border-radius:999px;padding:5px 13px;font-size:11.5px;color:var(--ink-3)}
 .chip b{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;color:var(--ink)}
+a.navlink{font-size:12.5px;color:var(--accent-2);text-decoration:none;padding:8px 12px;
+  border:1px solid rgba(139,124,255,.3);border-radius:var(--r-sm)}
+a.navlink:hover{background:var(--accent-dim)}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--gain);animation:pulse 2s ease-in-out infinite}
 .live-dot.off{background:var(--ink-3);animation:none}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
@@ -323,6 +326,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       <div class="chip">파동<b class="num" id="wave-ts">—</b></div>
       <div class="chip">통과<b class="num" id="chip-pass">—</b></div>
       <div class="chip">스캔<b class="num" id="chip-total">—</b></div>
+      <a class="navlink" href="./market.html">시장 히트맵 →</a>
       <button type="button" id="btn-copy">텔레그램 문구 복사</button>
       <button type="button" class="primary" id="btn-rescan">다시 스캔</button>
     </div>
