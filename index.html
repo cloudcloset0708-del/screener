@@ -298,6 +298,60 @@ table.mini.okx tr:last-child td{border-bottom:0}
 table.mini.okx td:first-child{color:var(--ink-2);font-weight:500}
 table.mini.okx td.num b{font-size:15px;color:#fff;letter-spacing:-.02em}
 
+/* 박스권 스캔 */
+.boxctl{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.boxfield{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:5px}
+.boxfield input{width:58px;padding:6px 8px;border-radius:7px;border:1px solid var(--edge-2);
+  background:rgba(0,0,0,.32);color:var(--ink);font:inherit;font-size:12.5px}
+.boxchk{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:5px;cursor:pointer}
+.boxprog{display:flex;align-items:center;gap:11px;margin-bottom:12px;font-size:12px;color:var(--ink-3)}
+.boxbar{flex:1;height:4px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
+.boxbar i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+.boxtable{width:100%;border-collapse:collapse;font-size:12.5px}
+.boxtable th{font-size:11px;font-weight:500;color:var(--ink-3);text-align:right;padding:9px 11px;
+  border-bottom:1px solid var(--edge);white-space:nowrap;background:rgba(255,255,255,.02)}
+.boxtable th:first-child,.boxtable td:first-child{text-align:left}
+.boxtable td{padding:9px 11px;text-align:right;border-bottom:1px solid rgba(255,255,255,.045);white-space:nowrap}
+.boxtable tr.ok td:first-child{border-left:2px solid var(--gain)}
+.boxfields{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.boxgroup{margin-bottom:26px}
+.boxgrouphead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 9px}
+.boxgrouphead h3{margin:0;font-size:14px;font-weight:600;letter-spacing:-.015em}
+.boxgrouphead .cnt{font-family:"JetBrains Mono",monospace;font-size:11.5px;font-weight:500;
+  color:var(--accent-2);background:var(--accent-dim);padding:2px 8px;border-radius:999px;margin-left:5px}
+.boxgrouphead p{margin:0;font-size:12px;color:var(--ink-3)}
+.seg.multi button{color:var(--ink-3)}
+.seg.multi button.on{background:var(--accent);color:#0B0A18;font-weight:600}
+.badge-stale{display:inline-block;padding:1px 7px;border-radius:999px;font-size:10.5px;
+  background:rgba(232,184,75,.14);border:1px solid rgba(232,184,75,.35);color:var(--warn)}
+.badge-cat{display:inline-block;padding:1px 6px;border-radius:5px;font-size:10px;margin-left:6px;
+  background:rgba(255,255,255,.07);color:var(--ink-3);vertical-align:middle}
+.boxtabnote{font-size:12.5px;color:var(--ink-2);margin:0 0 12px;line-height:1.7;
+  padding:11px 14px;border-radius:var(--r-md);background:var(--accent-dim);
+  border:1px solid rgba(139,124,255,.28)}
+.boxtable tr.no td{opacity:.55}
+.boxtable tr.tr td:first-child{border-left:2px solid var(--warn)}
+.boxtable tbody tr:hover{background:rgba(255,255,255,.035);cursor:pointer}
+.boxwrap{overflow-x:auto;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg)}
+.boxnote{font-size:12px;color:var(--ink-3);margin:11px 0 0;line-height:1.7}
+
+/* 작도 패널 — 박스권/추세선 */
+.tvbox{margin-top:14px;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-md);padding:13px 14px}
+.tvhead{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.tvhead h4{margin:0;font-size:12.5px;font-weight:600}
+.tvcanvas{width:100%;height:270px;display:block}
+.tvsum{margin:11px 0 0;font-size:12px;line-height:1.75;color:var(--ink-2)}
+.tvsum b{color:var(--ink);font-weight:600}
+.tvsum .k{display:inline-block;min-width:74px;color:var(--ink-3)}
+.tvverdict{margin-top:9px;padding:9px 11px;border-radius:var(--r-sm);font-size:12px;line-height:1.7;
+  background:var(--accent-dim);border:1px solid rgba(139,124,255,.3)}
+.tvverdict.no{background:rgba(242,96,92,.10);border-color:rgba(242,96,92,.33)}
+.tvwait{color:var(--ink-3);font-size:12px;padding:26px 0;text-align:center}
+.tvchips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.tvchip{font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid var(--edge-2);color:var(--ink-2)}
+.tvchip.ok{background:rgba(47,208,138,.13);border-color:rgba(47,208,138,.4);color:var(--gain)}
+.tvchip.no{background:rgba(242,96,92,.10);border-color:rgba(242,96,92,.33);color:var(--loss)}
+
 /* 종목 직접 조회 */
 .manualcard{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);padding:16px 18px}
 .manualhead{display:flex;align-items:center;justify-content:space-between;gap:14px;
@@ -443,6 +497,43 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
     <div id="chart-empty" class="chartempty">차트 띄우기를 누르면 통과 상위 종목이 한 창에 뜹니다.</div>
   </section>
 
+  <section id="box-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <div><h2>자리 찾기</h2>
+        <p id="box-desc">전 종목을 훑어 <b>박스매매</b>와 <b>추세돌파</b> 후보를 따로 골라냅니다. 한 번 스캔하면 두 목록이 같이 나옵니다.</p></div>
+      <div class="boxctl">
+        <div class="seg" id="box-mode">
+          <button type="button" data-boxmode="range" class="on">박스매매 · 거미줄 전용</button>
+          <button type="button" data-boxmode="trend">추세돌파 · 수동+거미줄</button>
+        </div>
+        <div class="seg" id="box-bar">
+          <button type="button" data-boxbar="5m" class="on">5m</button>
+          <button type="button" data-boxbar="15m">15m</button>
+          <button type="button" data-boxbar="1H">1H</button>
+        </div>
+        <span class="boxfields" data-for="range">
+          <label class="boxfield">최소 폭 <input id="box-minw" type="number" step="0.5" value="3"> %</label>
+          <label class="boxfield">최소 체결 <input id="box-minf" type="number" step="1" value="25"> 건/h</label>
+          <label class="boxfield">최소 왕복 <input id="box-minlap" type="number" step="1" value="3"> 회</label>
+        </span>
+        <span class="boxfields" data-for="trend" hidden>
+          <label class="boxfield">트리거 거리 <input id="box-near" type="number" step="0.5" value="2"> % 이내</label>
+          <label class="boxfield">가짜 돌파 <input id="box-fake" type="number" step="5" value="50"> % 미만</label>
+        </span>
+        <div class="seg multi" id="box-cat" title="OKX 무기한의 종류. 주식 토큰은 장이 닫히면 봉이 멈춥니다">
+          <button type="button" data-cat="1" class="on">코인</button>
+          <button type="button" data-cat="4" class="on">원자재</button>
+          <button type="button" data-cat="3" class="on">주식 토큰</button>
+        </div>
+        <label class="boxchk"><input type="checkbox" id="box-onlyok" checked> 적합만</label>
+        <label class="boxchk" title="시간당 평균 변동폭이 1% 미만이면 사다리가 채워지지 않습니다"><input type="checkbox" id="box-fresh" checked> 저활성 제외</label>
+        <button type="button" class="primary" id="btn-box">자리 찾기</button>
+      </div>
+    </div>
+    <div id="box-prog" class="boxprog" hidden><div class="boxbar"><i id="box-fill"></i></div><span id="box-msg">준비 중</span></div>
+    <div id="box-out"></div>
+  </section>
+
   <section id="manual-sec" style="margin-top:30px">
     <div class="sec-head">
       <div><h2>종목 직접 조회</h2>
@@ -494,6 +585,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
   </p>
 </div>
 
+<script src="trendview.js"></script>
 <script>
 "use strict";
 /* ══════════════════════════════════════════════════════════════════
@@ -799,7 +891,11 @@ async function fullScan(force){
     INSTRUMENTS = insts
       .filter(r => r.state === "live" && r.settleCcy === "USDT" && r.ctType === "linear")
       .map(r => ({ instId: r.instId, ctVal:+r.ctVal || 0,
-                   tickSz:+r.tickSz || 0, lotSz:+r.lotSz || 0, minSz:+r.minSz || 0 }));
+                   tickSz:+r.tickSz || 0, lotSz:+r.lotSz || 0, minSz:+r.minSz || 0,
+                   /* instCategory 1=암호화폐 3=주식 토큰(AAPL·GOOGL…) 4=원자재(금·은·원유).
+                      주식 토큰은 장이 닫히면 봉이 멈춰서 '가짜 돌파 0%' 같은
+                      가짜 신호가 나온다 — 실제로 토요일 스캔에서 152개 중 38개가 섞였다. */
+                   cat: r.instCategory || "1" }));
     INSTMAP = {};
     for (const i of INSTRUMENTS) INSTMAP[i.instId] = i;
 
@@ -1269,6 +1365,7 @@ function detailHtml(r){
       ${r.parts.overheat ? '<span class="check no"><span class="mark">!</span>볼린저 상단 밖 <em>−12</em></span>' : ""}
     </div>
     ${sizingHtml(r)}
+    ${trendHtml(r.instId)}
     <div id="deep-${r.sym}">${deepHtml(r.instId)}</div>
     <div class="askrow">
       <button type="button" class="copybtn askbtn" data-ask="${r.instId}">상담용 지표 복사</button>
@@ -1347,6 +1444,9 @@ function renderManual(){
       fail.map(c => c.name).join(" · ")}). 아래 숫자는 참고용이며, 조건을 못 맞춘 이유를 먼저 보십시오.</p>`}
     ${detailHtml(r)}
   </div>`;
+  // 직접 조회한 종목도 바로 작도한다
+  if (TV_STATE[r.instId] && TV_STATE[r.instId].model) paintTrend(r.instId);
+  else loadTrend(r.instId);
 }
 
 function render(){
@@ -1833,13 +1933,408 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+
+/* ── 작도 패널 ────────────────────────────────────────────────────────
+   종목을 펼치거나 직접 조회할 때마다 박스권·추세선·돌파 트리거를 그린다.
+   시간대 버튼을 누르면 그 시간대로 다시 계산한다.
+
+   봉 수를 시간대마다 다르게 잡는 이유: 5분봉 300개는 25시간이라 박스가
+   보이지만, 4시간봉 300개는 50일이라 박스가 아니라 추세가 잡힌다. */
+const TV_BARS = ["5m", "15m", "1H", "4H"];
+const TV_LIMIT = { "5m": 288, "15m": 300, "1H": 300, "4H": 250 };
+let TV_STATE = {};             // instId -> { bar, model, err }
+
+function trendHtml(instId){
+  const st = TV_STATE[instId] || { bar: "15m" };
+  return `<div class="tvbox" data-tv="${instId}">
+    <div class="tvhead">
+      <h4>박스권 · 추세선 작도</h4>
+      <div class="seg tvseg">${TV_BARS.map(b =>
+        `<button type="button" data-tvbar="${b}"${b === st.bar ? ' class="on"' : ""}>${b}</button>`).join("")}</div>
+    </div>
+    <div id="tvbody-${instId}">${tvBodyHtml(instId)}</div>
+  </div>`;
+}
+
+function tvBodyHtml(instId){
+  const st = TV_STATE[instId];
+  if (!st || (!st.model && !st.err)) return '<p class="tvwait">봉을 받아 작도하는 중…</p>';
+  if (st.err) return `<p class="tvwait neg">작도 실패: ${st.err}</p>`;
+  return `<canvas class="tvcanvas" id="tvcv-${instId}"></canvas>${tvSummary(st.model)}`;
+}
+
+/* 숫자를 '그래서 어떻게 하라는 것'으로 바꾼다. */
+function tvSummary(M){
+  const L = M.live, la = M.ladder, G = M.grade;
+  const pc = v => (Math.abs(v) >= 10 ? v.toFixed(1) : v.toFixed(2)) + "%";
+
+  if (!L) return `<div class="tvverdict no"><b>박스권 없음.</b> ${G.why}</div>`;
+
+  const line = (T, lab) => {
+    if (!T) return `<div><span class="k">${lab}</span>피벗 부족 — 못 그음</div>`;
+    const solid = T.touch >= 3 && T.oos && T.oos.broke / T.oos.of < 0.1;
+    return `<div><span class="k">${lab}</span><b>${fmtPrice(T.px)}</b> (${T.gap >= 0 ? "+" : ""}${T.gap.toFixed(2)}%)
+      · 터치 ${T.touch}회 · 앞 70% 검증 ${T.oos ? `${T.oos.broke}/${T.oos.of}봉 이탈` : "표본 부족"}
+      → <b class="${solid ? "pos" : "dim"}">${solid ? "쓸 수 있는 선" : "근거 약함"}</b></div>`;
+  };
+
+  const chip = (ok, txt) => `<span class="tvchip ${ok ? "ok" : "no"}">${ok ? "O" : "X"} ${txt}</span>`;
+  const fakeAvg = (M.bo.long.fake + M.bo.short.fake) / 2;
+
+  return `<div class="tvchips">
+      ${chip(G.wide, `박스 폭 ${pc(L.width*100)} · 기준 ${(G.minw*100).toFixed(0)}% 이상`)}
+      ${chip(L.laps >= G.minlap, `왕복 ${L.laps}회 · 기준 ${G.minlap}회`)}
+      ${chip(G.fph >= G.minf, `시간당 기대 체결 ${G.fph.toFixed(0)}건 · 기준 ${G.minf}건`)}
+      ${chip(G.wiggly, `방향성 ${M.dir.toFixed(3)} · 기준 0.13 미만`)}
+    </div>
+    <div class="tvsum">
+    <div><span class="k">박스권</span><b>${fmtPrice(L.lo)} ~ ${fmtPrice(L.hi)}</b>
+      · ${L.bars}봉 <b>${G.hours.toFixed(1)}시간</b> 유지
+      · 상단 터치 ${L.touchHi}봉 / 하단 ${L.touchLo}봉 · 사다리 <b>${L.sweeps.toFixed(0)}회</b> 훑음
+      · 현재 위치 <b>${(L.pos*100).toFixed(0)}%</b>${
+      L.pos > .8 ? " (상단권 — 신규 롱 주의)" : L.pos < .2 ? " (하단권 — 신규 숏 주의)" : ""}</div>
+    <div><span class="k">돌파 트리거</span>위 ${fmtPrice(M.trigUp)} (${((M.trigUp/M.last-1)*100).toFixed(2)}%)
+      · 아래 ${fmtPrice(M.trigDn)} (${((M.trigDn/M.last-1)*100).toFixed(2)}%)
+      · 가짜 돌파 ${(fakeAvg*100).toFixed(0)}%${fakeAvg >= .5 ? " <b>— 뚫려도 되돌아옵니다</b>" : ""}</div>
+    ${line(M.res, "저항선")}
+    ${line(M.sup, "지지선")}
+    <div><span class="k">거미줄 세팅</span>사다리 <b>${fmtPrice(la.bot)} ~ ${fmtPrice(la.top)}</b>
+      · 전체 폭 <b>${la.span.toFixed(2)}%</b> · 60개 기준 <b>주문 간격 ${la.gap.toFixed(4)}%</b>
+      ${la.gap < 0.05 ? ' <span class="neg">← 최소 TP 0.05% 미만. 박스가 너무 좁습니다</span>' : ""}</div>
+  </div>
+  <div class="tvverdict${G.ok ? "" : " no"}">
+    <b>${G.ok ? "거미줄 적합" : "거미줄 부적합"}</b> — ${G.why}.
+    ${G.ok ? `사다리를 ${fmtPrice(la.bot)}~${fmtPrice(la.top)} 에 치면
+              <b>시간당 ${G.fph.toFixed(0)}건</b> 정도 익절이 걸릴 구간입니다
+              (참고: 김현우 9/10 IOST 실적이 시간당 30건).`
+            : "조건을 못 맞춘 항목이 위 칩에 X 로 표시돼 있습니다."}
+    <span class="dim" style="display:block;margin-top:6px">기대 체결 수는 종가 기준 누적 경로를 주문 간격으로 나눈 값입니다.
+    짧은 봉일수록 실제 움직임을 더 담으므로 <b>5m 값이 현실에 가깝습니다</b>.</span>
+  </div>`;
+}
+
+async function loadTrend(instId, bar){
+  const st = TV_STATE[instId] = { bar: bar || (TV_STATE[instId] || {}).bar || "15m" };
+  const body = document.getElementById("tvbody-" + instId);
+  if (body) body.innerHTML = tvBodyHtml(instId);
+  try{
+    const rows = await api(`/api/v5/market/candles?instId=${instId}&bar=${st.bar}&limit=${TV_LIMIT[st.bar]}`);
+    const cs = parseCandles(rows, true);          // 차트는 진행 중인 봉까지 보여준다
+    if (cs.length < 60) throw new Error(`봉이 ${cs.length}개뿐입니다`);
+    st.model = TrendView.analyse(cs, st.bar,
+      { minw: BOXCFG.minw / 100, minf: BOXCFG.minf, minlap: BOXCFG.minlap, maxw: 0.12, win: 20, rr: 1.5, hours: 4 });
+  }catch(e){ st.err = e.message || "오류"; }
+  paintTrend(instId);
+}
+
+function paintTrend(instId){
+  const body = document.getElementById("tvbody-" + instId);
+  if (!body) return;
+  body.innerHTML = tvBodyHtml(instId);
+  const st = TV_STATE[instId];
+  const cv = document.getElementById("tvcv-" + instId);
+  if (!cv || !st || !st.model) return;
+  // 레이아웃 전에 그리면 clientWidth 가 0 이라 캔버스 기본값(300x150)으로 찌그러진다
+  let tries = 0;
+  (function paint(){
+    if (cv.clientWidth > 0) return TrendView.draw(cv, st.model);
+    if (++tries < 30) requestAnimationFrame(paint);
+  })();
+}
+
+/* 시간대 버튼 */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tvbar]");
+  if (!b) return;
+  const box = b.closest("[data-tv]");
+  if (!box) return;
+  box.querySelectorAll("[data-tvbar]").forEach(x => x.classList.toggle("on", x === b));
+  loadTrend(box.dataset.tv, b.dataset.tvbar);
+});
+
+let tvResizeTimer = null;
+window.addEventListener("resize", () => {
+  clearTimeout(tvResizeTimer);
+  tvResizeTimer = setTimeout(() => {
+    Object.keys(TV_STATE).forEach(id => {
+      const cv = document.getElementById("tvcv-" + id);
+      if (cv && TV_STATE[id].model) TrendView.draw(cv, TV_STATE[id].model);
+    });
+  }, 180);
+});
+
+
+/* ── 자리 찾기 (박스매매 / 추세돌파) ──────────────────────────────────
+   한 번 스캔하면 두 목록이 같이 나온다. 같은 봉으로 두 판정을 다 내기 때문.
+
+     박스매매 — 거미줄 전용. 폭이 넓고 그 안에서 자주 왕복하는 종목.
+     추세돌파 — 수동매매 + 거미줄. 추세가 있고, 뚫으면 되돌아오지 않고,
+                지금 트리거 앞에 와 있는 종목.
+
+   둘은 거의 배타적이다. 잔파동이라 거미줄이 되는 종목은 바로 그 이유로 돌파가
+   안 먹히고, 그 반대도 같다. 한 종목이 양쪽에 다 뜨면 판정이 애매한 구간이다. */
+const BOX_LIMIT = { "5m": 288, "15m": 300, "1H": 300 };
+let BOXCFG = { mode: "range", bar: "5m", minw: 3, minf: 25, minlap: 3,
+               near: 2, fake: 50, onlyOk: true, cats: ["1","4","3"], freshOnly: true };
+let BOXROWS = [];
+let boxRunning = false;
+
+function readBoxCfg(){
+  BOXCFG.mode = document.querySelector("#box-mode button.on").dataset.boxmode;
+  BOXCFG.bar  = document.querySelector("#box-bar button.on").dataset.boxbar;
+  BOXCFG.minw = parseFloat(document.getElementById("box-minw").value) || 3;
+  BOXCFG.minf = parseFloat(document.getElementById("box-minf").value) || 25;
+  BOXCFG.minlap = parseFloat(document.getElementById("box-minlap").value) || 3;
+  BOXCFG.near = parseFloat(document.getElementById("box-near").value) || 2;
+  BOXCFG.fake = parseFloat(document.getElementById("box-fake").value) || 50;
+  BOXCFG.onlyOk = document.getElementById("box-onlyok").checked;
+  BOXCFG.cats = [...document.querySelectorAll("#box-cat button.on")].map(b => b.dataset.cat);
+  BOXCFG.freshOnly = document.getElementById("box-fresh").checked;
+}
+
+function boxOpts(){
+  return { minw: BOXCFG.minw / 100, minf: BOXCFG.minf, minlap: BOXCFG.minlap,
+           maxNear: BOXCFG.near, maxFake: BOXCFG.fake / 100,
+           maxw: 0.12, win: 20, rr: 1.5, hours: 4 };
+}
+
+async function runBoxScan(){
+  if (boxRunning) return;
+  const out = document.getElementById("box-out");
+  if (!INSTRUMENTS.length || !Object.keys(TICKERS).length){
+    out.innerHTML = '<div class="err">먼저 스캔이 끝나야 합니다. 상단 <b>다시 스캔</b>을 눌러 주세요.</div>';
+    return;
+  }
+  readBoxCfg();
+
+  // 거래대금이 없으면 사다리가 안 채워지고 수동매매도 슬리피지에 먹힌다
+  const targets = INSTRUMENTS.filter(i => {
+    if (!BOXCFG.cats.includes(i.cat)) return false;
+    const t = TICKERS[i.instId];
+    return t && (+t.volCcy24h || 0) * (+t.last || 0) >= CFG.minTurnover;
+  });
+
+  boxRunning = true;
+  const prog = document.getElementById("box-prog");
+  const fill = document.getElementById("box-fill");
+  const msg = document.getElementById("box-msg");
+  prog.hidden = false; out.innerHTML = "";
+  const btn = document.getElementById("btn-box");
+  btn.disabled = true; btn.textContent = "찾는 중";
+
+  const opt = boxOpts();
+  const rows = [];
+  await pool(targets, 8, async (inst) => {
+    const raw = await api(`/api/v5/market/candles?instId=${inst.instId}&bar=${BOXCFG.bar}&limit=${BOX_LIMIT[BOXCFG.bar]}`);
+    const cs = parseCandles(raw, true);
+    if (cs.length < 60) return;
+    const M = TrendView.analyse(cs, BOXCFG.bar, opt);
+    /* 장이 닫힌 주식 토큰도 봉은 계속 나온다 — 값이 안 움직일 뿐이다.
+       그래서 '마지막 봉이 언제냐'로는 못 잡는다. 실측(9/12 토요일 5분봉):
+         IOST 0.95%/봉 · TRX 0.057% · GOOGL 0.028% · XAU 0.005%
+       주문 간격이 0.17% 인데 봉이 0.02% 씩 움직이면 사다리가 한 칸도 안 채워지고,
+       가격이 안 움직이니 '가짜 돌파 0%' 가 나와 추세 목록 최상위로 올라온다.
+       그래서 활성도는 **시간당 평균 변동폭**으로 잰다. */
+    const perHour = 60 / (TrendView.BAR_MIN[BOXCFG.bar] || 15);
+    const rng = cs.slice(-60);
+    const actPct = rng.reduce((t2, k) => t2 + (k.c ? (k.h - k.l) / k.c : 0), 0) / rng.length * 100 * perHour;
+    const t = TICKERS[inst.instId];
+    const T = M.trend;
+    rows.push({
+      instId: inst.instId, sym: inst.instId.replace("-USDT-SWAP", ""),
+      last: M.last, turnover: (+t.volCcy24h || 0) * (+t.last || 0),
+      cat: inst.cat, act: actPct, stale: actPct < 1,
+      dir: M.dir, gap: M.ladder ? M.ladder.gap : 0,
+      // 박스매매
+      width: M.live ? M.live.width * 100 : 0, hours: M.grade.hours || 0,
+      laps: M.live ? M.live.laps : 0, fph: M.grade.fph || 0,
+      pos: M.live ? M.live.pos : 0, lo: M.live ? M.live.lo : 0, hi: M.live ? M.live.hi : 0,
+      okRange: !!(M.live && M.grade.wide && M.grade.wiggly
+                  && M.grade.fph >= BOXCFG.minf && M.live.laps >= BOXCFG.minlap),
+      whyRange: M.grade.why,
+      // 추세돌파
+      slope: T.slope, fake: T.fake * 100, side: T.side, near: T.near,
+      trig: T.side === "up" ? M.trigUp : M.trigDn,
+      trigGap: T.side === "up" ? T.upGap : T.dnGap,
+      edge: T.edge, boN: T.n, okTrend: T.ok, whyTrend: T.why,
+      // 사다리 세팅 참고 — 검증된 추세선이 있으면 그게 목표/손절 자리다
+      resOk: !!(M.res && M.res.touch >= 3 && M.res.oos && M.res.oos.broke / M.res.oos.of < 0.1),
+      supOk: !!(M.sup && M.sup.touch >= 3 && M.sup.oos && M.sup.oos.broke / M.sup.oos.of < 0.1),
+    });
+  }, (done) => {
+    fill.style.width = Math.round(done / targets.length * 100) + "%";
+    msg.textContent = `${done} / ${targets.length}종목 · 박스 ${
+      rows.filter(r => r.okRange).length}개 · 추세 ${rows.filter(r => r.okTrend).length}개`;
+  });
+
+  BOXROWS = rows;
+  boxRunning = false;
+  btn.disabled = false; btn.textContent = "자리 찾기";
+  prog.hidden = true;
+  renderBoxScan();
+}
+
+const CATLAB = { "1":"", "3":"주식", "4":"원자재" };
+const catTag = r => (CATLAB[r.cat] ? `<span class="badge-cat">${CATLAB[r.cat]}</span>` : "")
+  + (r.stale ? ` <span class="badge-stale">거의 안 움직임 ${r.act.toFixed(2)}%/h</span>` : "");
+
+const boxMil = v => v >= 1e9 ? (v/1e9).toFixed(1)+"B" : v >= 1e6 ? (v/1e6).toFixed(0)+"M" : (v/1e3).toFixed(0)+"K";
+
+function renderBoxScan(){
+  const out = document.getElementById("box-out");
+  if (!BOXROWS.length){ out.innerHTML = ""; return; }
+  const trend = BOXCFG.mode === "trend";
+  const key = trend ? "okTrend" : "okRange";
+  /* 추세는 '거리'만으로 줄 세우면 표본 0건짜리가 맨 위로 온다.
+     가까울수록·가짜 돌파가 낮을수록·표본이 있을수록 위로 오게 한다. */
+  const tScore = r => (BOXCFG.near - Math.min(r.near, BOXCFG.near)) * 2
+                    + (100 - r.fake) / 25
+                    + Math.min(r.boN, 12) / 4
+                    + (r.edge > 0 ? 1 : 0);
+  const sorted = [...BOXROWS].sort(trend
+    ? (a, b) => (b[key] - a[key]) || (tScore(b) - tScore(a))
+    : (a, b) => (b[key] - a[key]) || (b.fph - a.fph));
+  const fresh = BOXCFG.freshOnly ? sorted.filter(r => !r.stale) : sorted;
+  const shown = BOXCFG.onlyOk ? fresh.filter(r => r[key]) : fresh.slice(0, 60);
+
+  const head = trend
+    ? `<p class="boxtabnote"><b>추세돌파 — 수동매매 + 거미줄.</b>
+        추세가 있고(방향성 0.13↑ 또는 기울기 0.15%/h↑), <b>뚫으면 되돌아오지 않고</b>(가짜 돌파 ${BOXCFG.fake}% 미만),
+        지금 트리거 <b>${BOXCFG.near}% 이내</b>에 와 있는 종목입니다.
+        수동은 트리거 돌파에 진입하고, 거미줄을 칠 거면 <b>박스 폭 전체가 아니라 트리거 너머 구간</b>으로 좁게 잡으십시오.</p>`
+    : `<p class="boxtabnote"><b>박스매매 — 거미줄 전용.</b>
+        폭 <b>${BOXCFG.minw}% 이상</b>인 박스 안에서 <b>왕복 ${BOXCFG.minlap}회 이상</b>,
+        시간당 기대 체결 <b>${BOXCFG.minf}건 이상</b>인 종목입니다.
+        박스 상·하단을 그대로 사다리 상·하단에 넣고, 주문 간격은 표의 값을 씁니다.</p>`;
+
+  if (!shown.length){
+    out.innerHTML = head + `<div class="boxnote">조건을 만족하는 종목이 없습니다.
+      ${BOXROWS.length}종목을 봤습니다. 기준을 낮추거나 시간대를 <b>5m</b>으로 바꿔 보십시오.</div>`;
+    return;
+  }
+
+  const rowsOf = (list) => trend ? list.map(r => `
+      <tr class="${r.okTrend ? "tr" : "no"}" data-boxsym="${r.instId}">
+        <td><b>${r.sym}</b>${catTag(r)}</td>
+        <td class="num">${fmtPrice(r.last)}</td>
+        <td class="${r.side === "up" ? "pos" : "neg"}">${r.side === "up" ? "▲ 상단 돌파" : "▼ 하단 이탈"}</td>
+        <td class="num"><b>${fmtPrice(r.trig)}</b></td>
+        <td class="num ${r.near <= BOXCFG.near ? "pos" : "neg"}">${r.trigGap >= 0 ? "+" : ""}${r.trigGap.toFixed(2)}%</td>
+        <td class="num ${r.fake < BOXCFG.fake ? "pos" : "neg"}">${r.fake.toFixed(0)}%</td>
+        <td class="num ${Math.abs(r.slope) >= .15 ? "pos" : ""}">${r.slope >= 0 ? "+" : ""}${r.slope.toFixed(2)}%/h</td>
+        <td class="num ${r.dir >= .13 ? "pos" : ""}">${r.dir.toFixed(3)}</td>
+        <td class="num ${r.edge > 0 ? "pos" : "neg"}">${r.boN ? (r.edge >= 0 ? "+" : "") + r.edge.toFixed(2) + "R" : "—"}
+          <span class="dim">${r.boN ? r.boN + "건" : ""}</span></td>
+        <td class="num dim">${boxMil(r.turnover)}</td>
+        <td class="dim">${r.okTrend ? ((r.supOk || r.resOk) ? "추세선 검증 통과" : "") : r.whyTrend.slice(0, 26)}</td>
+      </tr>`).join("")
+    : list.map(r => `
+      <tr class="${r.okRange ? "ok" : "no"}" data-boxsym="${r.instId}">
+        <td><b>${r.sym}</b>${catTag(r)}</td>
+        <td class="num">${fmtPrice(r.last)}</td>
+        <td class="num dim">${fmtPrice(r.lo)} ~ ${fmtPrice(r.hi)}</td>
+        <td class="num ${r.width >= BOXCFG.minw ? "pos" : "neg"}">${r.width.toFixed(2)}%</td>
+        <td class="num">${r.hours.toFixed(1)}h</td>
+        <td class="num ${r.fph >= BOXCFG.minf ? "pos" : "neg"}"><b>${r.fph.toFixed(0)}</b></td>
+        <td class="num ${r.laps >= BOXCFG.minlap ? "pos" : "neg"}">${r.laps}</td>
+        <td class="num ${r.dir < 0.13 ? "pos" : "neg"}">${r.dir.toFixed(3)}</td>
+        <td class="num ${r.pos > .8 || r.pos < .2 ? "wrn" : "pos"}">${(r.pos*100).toFixed(0)}%</td>
+        <td class="num">${r.gap.toFixed(4)}%</td>
+        <td class="num dim">${boxMil(r.turnover)}</td>
+        <td class="dim">${r.okRange ? "" : r.whyRange.slice(0, 26)}</td>
+      </tr>`).join("");
+
+  const th = trend
+    ? `<th>종목</th><th>현재가</th><th>방향</th><th>트리거</th><th>거리</th>
+       <th>가짜 돌파</th><th>기울기</th><th>방향성</th><th>돌파 우위</th><th>거래대금</th><th></th>`
+    : `<th>종목</th><th>현재가</th><th>박스 하단 ~ 상단</th><th>폭</th><th>유지</th>
+       <th>체결/h</th><th>왕복</th><th>방향성</th><th>위치</th><th>주문 간격</th><th>거래대금</th><th></th>`;
+
+  const note = trend
+    ? `<b>거리</b>가 0에 가까울수록 지금 대기할 자리입니다. <b>가짜 돌파</b>는 뚫고 곧바로 되돌아온 비율 —
+       낮을수록 돌파를 믿을 수 있습니다. <b>돌파 우위</b>는 돌파 진입이 아무 자리 진입보다 얼마나 나았는지(R 단위)이며,
+       <span class="neg">표본이 10건 미만이면 참고만 하십시오</span>.`
+    : `<b>체결/h</b> 는 누적 경로를 주문 간격(폭÷60)으로 나눈 값 — 사다리에 익절이 몇 번 걸릴지의 추정입니다.
+       <b>위치</b> 0%는 박스 하단, 100%는 상단. 상단권에서 신규 롱, 하단권에서 신규 숏은 사다리가 한쪽만 채워질 위험이 큽니다.`;
+
+  /* 종류를 섞어 놓으면 못 쓴다 — 코인과 주식 토큰은 거래 시간도, 변동 성격도 다르다.
+     그래서 한 표에 몰지 않고 종류별로 끊어서 보여준다. */
+  const GROUPS = [
+    { cat:"1", name:"코인", desc:"24시간 거래. 지금 바로 칠 수 있는 자리입니다." },
+    { cat:"4", name:"원자재", desc:"금·은·원유 등. 24시간 돌지만 변동이 코인의 1/10 수준이라 사다리가 잘 안 채워집니다." },
+    { cat:"3", name:"주식 토큰", desc:"AAPL·GOOGL 등. 장이 닫혀도 봉은 나오지만 <b>값이 거의 안 움직입니다</b> — 시간당 변동폭을 먼저 보십시오." },
+  ];
+  const blocks = GROUPS.map(g => {
+    const list = shown.filter(r => r.cat === g.cat);
+    if (!list.length) return "";
+    return `<div class="boxgroup">
+      <div class="boxgrouphead">
+        <h3>${g.name} <span class="cnt">${list.length}개</span></h3>
+        <p>${g.desc}</p>
+      </div>
+      <div class="boxwrap"><table class="boxtable">
+        <thead><tr>${th}</tr></thead><tbody>${rowsOf(list)}</tbody></table></div>
+    </div>`;
+  }).join("");
+
+  out.innerHTML = head + blocks +
+    `<p class="boxnote">${note} 행을 누르면 아래 <b>종목 직접 조회</b>에 그 종목이 열립니다.</p>`;
+}
+
+document.getElementById("btn-box").addEventListener("click", runBoxScan);
+document.getElementById("box-onlyok").addEventListener("change", () => {
+  BOXCFG.onlyOk = document.getElementById("box-onlyok").checked;
+  if (BOXROWS.length) renderBoxScan();
+});
+document.getElementById("box-fresh").addEventListener("change", () => {
+  BOXCFG.freshOnly = document.getElementById("box-fresh").checked;
+  if (BOXROWS.length) renderBoxScan();
+});
+/* 종류는 다중 선택 — 끄면 그 종류가 스캔 대상에서 빠진다 (다시 찾아야 반영) */
+document.getElementById("box-cat").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cat]");
+  if (!b) return;
+  const on = [...document.querySelectorAll("#box-cat button.on")];
+  if (on.length === 1 && on[0] === b) return;        // 전부 끄는 건 막는다
+  b.classList.toggle("on");
+  const btn = document.getElementById("btn-box");
+  btn.textContent = "다시 찾기";
+  btn.classList.add("primary");
+});
+document.getElementById("box-bar").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-boxbar]");
+  if (!b) return;
+  document.querySelectorAll("#box-bar button").forEach(x => x.classList.toggle("on", x === b));
+});
+/* 모드 전환은 다시 스캔하지 않는다 — 두 판정이 이미 같은 봉에서 나와 있다 */
+document.getElementById("box-mode").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-boxmode]");
+  if (!b) return;
+  document.querySelectorAll("#box-mode button").forEach(x => x.classList.toggle("on", x === b));
+  BOXCFG.mode = b.dataset.boxmode;
+  document.querySelectorAll(".boxfields").forEach(f => { f.hidden = f.dataset.for !== BOXCFG.mode; });
+  if (BOXROWS.length) renderBoxScan();
+});
+document.getElementById("box-out").addEventListener("click", (e) => {
+  const tr = e.target.closest("[data-boxsym]");
+  if (!tr) return;
+  document.getElementById("m-sym").value = tr.dataset.boxsym.replace("-USDT-SWAP", "");
+  runManual();
+  document.getElementById("manual-sec").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
 /* ── 이벤트 ────────────────────────────────────────────────────── */
 document.getElementById("tbody").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-id]");
   if (!tr) return;
   OPEN_ROW = OPEN_ROW === tr.dataset.id ? null : tr.dataset.id;
   render();
-  if (OPEN_ROW) loadDeep(OPEN_ROW);
+  if (OPEN_ROW){
+    loadDeep(OPEN_ROW);
+    // 이미 받아둔 시간대가 있으면 다시 안 받고 캔버스만 다시 그린다
+    if (TV_STATE[OPEN_ROW] && TV_STATE[OPEN_ROW].model) paintTrend(OPEN_ROW);
+    else loadTrend(OPEN_ROW);
+  }
 });
 
 document.querySelectorAll("thead th[data-sort]").forEach(th => {
