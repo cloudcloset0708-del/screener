@@ -139,8 +139,7 @@ td.flash-up{animation:fu .7s ease-out} td.flash-down{animation:fd .7s ease-out}
 .bias.short{color:var(--loss);background:rgba(242,96,92,.12);border-color:rgba(242,96,92,.3)}
 .bias.flat{color:var(--ink-3);background:rgba(255,255,255,.05);border-color:var(--edge)}
 /* 펀딩비 섹션 */
-.fund-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media (max-width:900px){.fund-wrap{grid-template-columns:1fr}}
+.fund-wrap{display:grid;grid-template-columns:1fr;gap:14px}
 .fund-box{background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg);overflow:hidden}
 .fund-box h3{margin:0;padding:12px 15px;font-size:12.5px;font-weight:600;
   border-bottom:1px solid var(--edge);background:rgba(255,255,255,.02)}
@@ -557,15 +556,9 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
     </div>
     <div class="fund-wrap">
       <div class="fund-box">
-        <h3 class="long">▼ 펀딩 음수 · 롱 유리<small>숏이 지불 = 숏 과밀</small></h3>
+        <h3 class="long">▼ 펀딩 음수 · 롱이 받는다<small>숏이 지불 = 숏 과밀. 하루환산이 큰 순</small></h3>
         <div class="table-scroll" style="border:0;background:transparent">
           <table><tbody id="fund-neg"><tr><td class="empty">—</td></tr></tbody></table>
-        </div>
-      </div>
-      <div class="fund-box">
-        <h3 class="short">▲ 펀딩 양수 · 숏 유리<small>롱이 지불 = 롱 과밀</small></h3>
-        <div class="table-scroll" style="border:0;background:transparent">
-          <table><tbody id="fund-pos"><tr><td class="empty">—</td></tr></tbody></table>
         </div>
       </div>
     </div>
@@ -573,7 +566,9 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       OKX는 종목마다 정산 주기가 다릅니다(<b>2·4·8시간</b>). 같은 −0.1%라도 2시간 주기면
       8시간 주기의 <b>4배</b>로 부담이 쌓이므로 <b>하루 환산</b>으로 줄을 세웁니다 —
       <code>펀딩률 × (24 ÷ 주기)</code>. <b>주기가 짧을수록 자동으로 강하게</b> 잡힙니다.<br>
-      <b>한계</b>는 주기당 상·하한(대부분 ±1%) 대비 현재 수준입니다. 100%에 가까울수록 극단입니다.
+      <b>한계</b>는 주기당 상·하한(대부분 ±1%) 대비 현재 수준입니다. 100%에 가까울수록 극단입니다.<br>
+      <b>펀딩 양수(롱이 지불)는 여기 띄우지 않습니다.</b> 양수 쪽은 하루환산이 0.1% 안팎에 머물러
+      방향 선택을 바꿀 만한 크기가 아니었습니다. 종목별 부호는 각 종목을 펼치면 <b>펀딩</b> 칩에 그대로 나옵니다.
     </p>
   </section>
 
@@ -1615,10 +1610,11 @@ function renderFunding(){
   const head = `<tr>
       <th>종목</th><th>하루환산</th><th>펀딩률</th><th>주기</th><th>한계</th><th>다음정산</th><th>거래대금</th>
     </tr>`;
-  const neg = FUNDING.filter(f => f.daily < 0).sort((a,b) => a.daily - b.daily).slice(0,15);
-  const pos = FUNDING.filter(f => f.daily > 0).sort((a,b) => b.daily - a.daily).slice(0,15);
+  /* 양수(롱이 지불)는 안 띄운다. 실측상 양수 쪽은 하루환산 0.1% 안팎에서 머무는 반면
+     음수 쪽은 −1.4% 까지 벌어져, 한 화면에 같이 두면 의사결정에 쓸 수 없는 값이
+     자리만 차지한다. 종목별 펀딩 부호는 각 종목 상세의 '펀딩' 칩에 그대로 나온다. */
+  const neg = FUNDING.filter(f => f.daily < 0).sort((a,b) => a.daily - b.daily).slice(0,25);
   document.getElementById("fund-neg").innerHTML = head + (neg.map(row).join("") || `<tr><td colspan="7" class="empty">없음</td></tr>`);
-  document.getElementById("fund-pos").innerHTML = head + (pos.map(row).join("") || `<tr><td colspan="7" class="empty">없음</td></tr>`);
   const iv = {};
   FUNDING.forEach(f => iv[f.hrs] = (iv[f.hrs]||0)+1);
   document.getElementById("fund-meta").textContent =
