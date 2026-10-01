@@ -418,8 +418,6 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       <input type="number" id="c-range" value="10" step="0.5" min="0"></div>
     <div class="ctl"><label for="c-years">차트 기간 하한 (년)</label>
       <input type="number" id="c-years" value="1" step="0.5" min="0"></div>
-    <div class="ctl"><label for="c-move">1년내 하루 등락 상한 (%)</label>
-      <input type="number" id="c-move" value="40" step="5" min="0"></div>
     <div class="ctl"><label for="c-turnover">24h 거래대금 하한 (백만)</label>
       <input type="number" id="c-turnover" value="3" step="1" min="0"></div>
     <div class="ctl"><label for="c-wave">파동 관측 구간 (시간)</label>
@@ -601,7 +599,7 @@ const API = "https://www.okx.com";
 const CACHE_KEY = "idea-screener-scan-v3";
 const DAY_MS = 86400000;
 
-const CFG = { minRange:.10, minYears:1, maxMove:.40, dropMode:"body", minTurnover:3e6,
+const CFG = { minRange:.10, minYears:1, dropMode:"body", minTurnover:3e6,
               bbPeriod:20, interval:3, waveHours:6, minSwings:0 , equity: 590, risk: 10, lev: 0, orders: 60, span: "fixed", spanval: 3.5, tpmult: 5 };
 
 let INSTRUMENTS = [];        // [{instId, ctVal, tickSz, lotSz, minSz}]
@@ -809,8 +807,6 @@ function judge(instId, mx, tk){
       detail:`${(mx.rangePct*100).toFixed(2)}% ≥ ${(CFG.minRange*100).toFixed(0)}%` },
     { name:"차트기간", ok: mx.years >= CFG.minYears,
       detail:`${mx.years.toFixed(1)}년 ≥ ${CFG.minYears}년` },
-    { name:"급변",   ok: (mx.maxMove1y ?? 0) < CFG.maxMove,
-      detail:`1년 내 최대 ${((mx.maxMove1y ?? 0)*100).toFixed(1)}% < ${(CFG.maxMove*100).toFixed(0)}% (일봉 ${mx.yearBars ?? 0}개)` },
     { name:"20일선",  ok: mx.bbMid != null && last > mx.bbMid,
       detail: mx.bbMid == null ? "일봉 20개 미만"
         : `${last.toPrecision(6)} vs ${mx.bbMid.toPrecision(6)} (${(midPct*100).toFixed(2)}%)` },
@@ -974,7 +970,7 @@ let waveTimer = null;
 function passesStatic(instId, mx, tk){
   const last = +tk.last || mx.dailyClose;
   const turnover = (+tk.volCcy24h || 0) * last;
-  return mx.rangePct >= CFG.minRange && (mx.maxMove1y ?? 0) < CFG.maxMove &&
+  return mx.rangePct >= CFG.minRange &&
          mx.years >= CFG.minYears && mx.bbMid != null && last > mx.bbMid &&
          turnover >= CFG.minTurnover;
 }
@@ -2373,7 +2369,7 @@ document.querySelectorAll("thead th[data-sort]").forEach(th => {
 });
 
 const PREF_KEY = "idea-screener-prefs-v1";
-const PREF_IDS = ["c-range","c-years","c-move","c-turnover","c-wave","c-interval",
+const PREF_IDS = ["c-range","c-years","c-turnover","c-wave","c-interval",
                   "c-equity","c-lev","c-risk","c-orders","c-span","c-spanval","c-tpmult"];
 function savePrefs(){
   try{
@@ -2406,7 +2402,6 @@ const bind = (id, key, transform) => {
 };
 bind("c-range", "minRange", v => v / 100);
 bind("c-years", "minYears");
-bind("c-move", "maxMove", v => v / 100);
 bind("c-turnover", "minTurnover", v => v * 1e6);
 bind("c-interval", "interval");
 bind("c-equity", "equity");
