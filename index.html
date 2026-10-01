@@ -195,6 +195,7 @@ table.mini tr.bad td:first-child{color:#F5A6A3;font-weight:600}
 table.mini tr.bad td.num b{color:var(--loss)}
 table.mini.size tr.hl td:first-child{color:var(--accent-2);font-weight:600}
 .warnline{margin:8px 0 0;font-size:11px;color:var(--warn);line-height:1.5}
+.hintline{margin:8px 0 0;font-size:11.5px;line-height:1.55;color:var(--ink-3,#6A7283)}
 .askrow{display:flex;align-items:center;gap:11px;flex-wrap:wrap;margin-top:13px;
   padding-top:12px;border-top:1px solid var(--edge)}
 .askbtn{font-size:12px;padding:6px 13px}
@@ -434,14 +435,15 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
       <input type="number" id="c-orders" value="60" step="5" min="2" max="200"></div>
     <div class="ctl"><label for="c-span">세팅 방식</label>
       <select id="c-span">
-        <option value="gap">간격 지정 → 칸수 역산 (권장)</option>
+        <option value="auto">간격 자동 추천 (권장)</option>
+        <option value="gap">간격 직접 입력</option>
         <option value="fixed">폭 직접 입력 → 60등분</option>
         <option value="auto">관측 구간 레인지 → 60등분</option>
         <option value="mae">역행폭 → 60등분</option>
       </select></div>
-    <div class="ctl"><label for="c-gap">주문 간격 (%)</label>
+    <div class="ctl"><label for="c-gap">주문 간격 (%) · 직접 입력 전용</label>
       <input type="number" id="c-gap" value="0.35" step="0.05" min="0.05" max="2"></div>
-    <div class="ctl"><label for="c-maxloss">전 칸 체결 시 허용 손실 (시드 %)</label>
+    <div class="ctl"><label for="c-maxloss">허용 손실 (시드 %) · 경고용</label>
       <input type="number" id="c-maxloss" value="15" step="1" min="2" max="60"></div>
     <div class="ctl"><label for="c-spanval">거미줄 전체 폭 (%) · 폭 방식 전용</label>
       <input type="number" id="c-spanval" value="3.5" step="0.5" min="0.2" max="60"></div>
@@ -605,7 +607,7 @@ const CACHE_KEY = "idea-screener-scan-v3";
 const DAY_MS = 86400000;
 
 const CFG = { minRange:.10, minYears:1, dropMode:"body", minTurnover:3e6,
-              bbPeriod:20, interval:3, waveHours:6, minSwings:0 , equity: 590, risk: 10, lev: 0, orders: 60, span: "gap", spanval: 3.5, tpmult: 1.2, gap: 0.35, maxLoss: 15 };
+              bbPeriod:20, interval:3, waveHours:6, minSwings:0 , equity: 590, risk: 10, lev: 5, orders: 60, span: "auto", spanval: 3.5, tpmult: 1.2, gap: 0.35, maxLoss: 15 };
 
 let INSTRUMENTS = [];        // [{instId, ctVal, tickSz, lotSz, minSz}]
 let INSTMAP = {};            // instId -> 위 객체 (호가 단위·최소 수량 확인용)
@@ -1121,14 +1123,28 @@ function sizing(cs, last, equity, riskPct, opt){
     // 폭 3.5% 를 60으로 나누면 0.058% 가 나온다 — 호가에 붙어 버리고,
     // 무엇보다 **변동성 10~50% 짜리 종목에서 몇 분이면 60칸이 다 찬다.**
     // 지금은 실제로 쓰는 값(간격 0.2~1.0%)을 입력으로 두고 칸수를 역산한다.
-    let gap, n, span, nCover, nRisk, capped;
-    if (o.spanMode === "gap") {
-      gap = Math.max(o.gapPct || 0.35, tickPct * 2, 0.01);
-      nCover = Math.max(5, Math.round(dayRange / gap));        // 하루 레인지를 덮는 칸수
-      nRisk  = Math.max(5, Math.floor(2 * maxLoss / (lev * gap)));  // 전 칸 체결 시 손실 한도
-      n = Math.max(5, Math.min(nCover, nRisk, Math.round(o.orders || 60)));
+    let gap, n, span, nCover, nRisk, capped, gapCover, gapLiq, gapFloor, gapSrc;
+    if (o.spanMode === "auto" || o.spanMode === "gap") {
+      // 칸수·배율은 고정이고 **간격만 종목 변동성에서 뽑는다**(2026-10-01 현수 지시).
+      n = Math.max(5, Math.round(o.orders || 60));
+      // ① 레인지를 n칸으로 정확히 덮는 간격
+      gapCover = dayRange / n;
+      // ② 청산선: 전 칸 체결 시 평가손실 = 배율 × 폭/2 이고 이게 100% 면 청산이다.
+      //    → 간격 ≤ 200 / (배율 × 칸수). 5배·60칸이면 0.667%.
+      //    SOON 때 0.75% 를 썼다 — 이 선을 넘긴 세팅이었다 → [[soon-loss-2026-09-30]]
+      gapLiq = 200 / (lev * n);
+      // ③ 하한: 호가 2틱, 그리고 TP 가 수수료 3배를 넘도록
+      gapFloor = Math.max(tickPct * 2, tpFloor / tpMult, 0.01);
+      const 추천 = Math.min(gapCover, gapLiq * 0.7);
+      gap = o.spanMode === "gap" && o.gapPct ? Math.max(o.gapPct, 0.01)
+                                             : Math.max(추천, gapFloor);
+      gapSrc = o.spanMode === "gap" ? "manual"
+             : gap <= gapFloor + 1e-9 ? "floor"
+             : (gapCover > gapLiq * 0.7 ? "liq" : "cover");
       span = gap * n;
-      capped = nRisk < nCover ? "risk" : (Math.round(o.orders || 60) < Math.min(nCover, nRisk) ? "orders" : "");
+      nCover = Math.round(dayRange / gap);
+      nRisk  = Math.max(1, Math.floor(2 * maxLoss / (lev * gap)));
+      capped = "";
     } else {
       n = Math.max(2, Math.round(o.orders || 60));
       span = o.spanMode === "mae" ? mae
@@ -1164,8 +1180,15 @@ function sizing(cs, last, equity, riskPct, opt){
     const netPctHr = netHr / equity * 100;                // 시드 대비 시간당 %
     const hrsTo3 = netPctHr > 0 ? 3 / netPctHr : Infinity;
 
+    // 몇 칸까지 차면 시드의 몇 %를 잃나.
+    //   d칸 체결 → 체결명목 = 시드×배율×(d/n), 평균진입은 그 구간 한가운데
+    //   → 손실% = 배율 × (d/n) × (간격 × d / 2)
+    // **현수 실측: 평소 3~5칸, 변동성 크면 10~20칸이 찬다.** 60칸은 극단이다.
+    const lossAt = (d) => lev * (d / n) * (gap * d / 2);
+    const depths = [3, 5, 10, 20, n].map(d => ({ d, pct: lossAt(d), usdt: lossAt(d) * equity / 100 }));
+
     return { mae, lev, levMax, levCover, levAuto, over: lev > levAuto, stop, span, gap, n, tp,
-             nCover, nRisk, capped, dayRange,
+             nCover, nRisk, capped, dayRange, gapCover, gapLiq, gapFloor, gapSrc, depths,
              grossHr, feeHr, netHr, feeShare, netPctHr, hrsTo3, ampPerHour,
              coverPct: dayRange > 0 ? span / dayRange * 100 : 0,
              tpFloored: gap * tpMult < tpFloor, realized: tp * lev,
@@ -1344,6 +1367,22 @@ function sizingHtml(r){
           n0(k.grossHr, 2)} 중 ${n0(k.feeHr, 2)} · TP ${p6(k.tp)}% 기준</em></td></tr>
         <tr><td>하루 레인지 덮는 비율</td><td class="num">${k.coverPct.toFixed(0)}%<em>폭 ${k.span.toFixed(2)}% / 24h 레인지 ${k.dayRange.toFixed(1)}%</em></td></tr>
       </table>
+      <table class="mini">
+        <tr><th colspan="2" style="text-align:left">몇 칸 차면 얼마 잃나 <em style="font-weight:400">평소 3~5칸 · 변동성 크면 10~20칸</em></th></tr>
+        ${k.depths.map(x => `<tr class="${x.pct >= 100 ? "bad" : ""}"><td>${x.d}칸 체결</td><td class="num">${
+          x.pct >= 100 ? '<b class="neg">청산</b>' : "<b>−" + x.pct.toFixed(2) + "</b>%"
+        }<em>−${n0(x.usdt, 1)} USDT</em></td></tr>`).join("")}
+      </table>
+      ${k.gapSrc ? '<p class="hintline">간격 ' + p6(k.gap) + '% 선정 근거: ' + ({
+          cover: "24시간 레인지 " + k.dayRange.toFixed(1) + "% 를 " + k.n + "칸으로 덮는 값",
+          liq:   "<b>청산선에 걸려 줄였습니다.</b> 레인지대로면 " + k.gapCover.toFixed(3)
+                 + "% 인데, 간격이 " + k.gapLiq.toFixed(3) + "% 를 넘으면 " + k.n
+                 + "칸이 다 찰 때 청산입니다(" + k.lev + "배)",
+          floor: "호가·수수료 하한 " + k.gapFloor.toFixed(3) + "% 에 걸렸습니다. 레인지대로면 "
+                 + k.gapCover.toFixed(3) + "% 입니다",
+          manual:"직접 입력값. 레인지 기준 추천은 " + Math.min(k.gapCover, k.gapLiq * 0.7).toFixed(3)
+                 + "% · 청산선 " + k.gapLiq.toFixed(3) + "%",
+        }[k.gapSrc] || "") + '</p>' : ''}
       ${k.tight ? '<p class="warnline">주문 간격이 호가 단위(1틱 ' + sz.tickPct.toFixed(4)
                  + '%)에 너무 가깝습니다. 간격을 넓히세요.</p>' : ''}
       ${k.capped === "risk" ? '<p class="warnline">칸수를 <b>' + k.nRisk + '개</b>로 줄였습니다 — 하루 레인지(' + k.dayRange.toFixed(1)
@@ -1359,7 +1398,8 @@ function sizingHtml(r){
 
   return `<div class="sizebox">
     <div class="sizehead">진입 세팅 — 풀시드 ${CFG.equity.toLocaleString()} USDT 전액을 증거금으로
-      <em>${CFG.span === "gap" ? "간격 " + CFG.gap + "% 고정 → 칸수 역산 (허용 손실 " + CFG.maxLoss + "%)"
+      <em>${CFG.span === "auto" ? CFG.lev + "배 · " + CFG.orders + "칸 고정 → 간격을 변동성에서 추천"
+                : CFG.span === "gap" ? "간격 " + CFG.gap + "% 직접 입력 · " + CFG.orders + "칸"
                 : CFG.span === "mae" ? "역행폭(종목별)을 " + CFG.orders + "등분"
                 : CFG.span === "fixed" ? "폭 " + CFG.spanval + "% 를 " + CFG.orders + "등분"
                 : "최근 " + sz.hours + "시간 레인지 " + sz.sessionRange.toFixed(2) + "% 를 " + CFG.orders + "등분"}
