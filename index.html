@@ -1123,7 +1123,7 @@ function sizing(cs, last, equity, riskPct, opt){
     // 폭 3.5% 를 60으로 나누면 0.058% 가 나온다 — 호가에 붙어 버리고,
     // 무엇보다 **변동성 10~50% 짜리 종목에서 몇 분이면 60칸이 다 찬다.**
     // 지금은 실제로 쓰는 값(간격 0.2~1.0%)을 입력으로 두고 칸수를 역산한다.
-    let gap, n, span, nCover, nRisk, capped, gapCover, gapLiq, gapFloor, gapSrc;
+    let gap, n, span, nCover, nRisk, capped, gapCover, gapLiq, gapFloor, gapSrc, gapRaw;
     if (o.spanMode === "auto" || o.spanMode === "gap") {
       // 칸수·배율은 고정이고 **간격만 종목 변동성에서 뽑는다**(2026-10-01 현수 지시).
       n = Math.max(5, Math.round(o.orders || 60));
@@ -1133,13 +1133,23 @@ function sizing(cs, last, equity, riskPct, opt){
       //    → 간격 ≤ 200 / (배율 × 칸수). 5배·60칸이면 0.667%.
       //    SOON 때 0.75% 를 썼다 — 이 선을 넘긴 세팅이었다 → [[soon-loss-2026-09-30]]
       gapLiq = 200 / (lev * n);
-      // ③ 하한: 호가 2틱, 그리고 TP 가 수수료 3배를 넘도록
-      gapFloor = Math.max(tickPct * 2, tpFloor / tpMult, 0.01);
-      const 추천 = Math.min(gapCover, gapLiq * 0.7);
-      gap = o.spanMode === "gap" && o.gapPct ? Math.max(o.gapPct, 0.01)
-                                             : Math.max(추천, gapFloor);
+      // ③ 하한은 **호가 2틱뿐이다.** 전에는 "TP 가 수수료 3배를 넘게" 하려고
+      //    tpFloor/tpMult 까지 하한에 넣었는데, TP 는 아래에서 따로 바닥을 깔기 때문에
+      //    간격까지 올릴 이유가 없었다. HBAR 가 0.103% → 0.2% 로 두 배 튀었다.
+      gapFloor = Math.max(tickPct * 2, 0.01);
+      const 추천 = Math.max(Math.min(gapCover, gapLiq * 0.7), gapFloor);
+      // **소수 첫째 자리로 반올림해서 내보낸다**(2026-10-01 현수 지시).
+      // 프로그램에 손으로 넣는 값이라 0.156% 같은 건 그대로 못 쓴다.
+      // 반올림 때문에 하한 밑으로 내려가거나 청산선을 넘으면 안 되므로
+      // 그때는 0.1 단위로 올리거나 내린다.
+      let 반올림 = Math.round(추천 * 10) / 10;
+      if (반올림 < gapFloor) 반올림 = Math.ceil(gapFloor * 10) / 10;
+      if (반올림 > gapLiq)   반올림 = Math.floor(gapLiq * 10) / 10;
+      if (반올림 < 0.1)      반올림 = Math.min(0.1, gapLiq);   // 청산선이 0.1 보다 빡세면 그쪽을 따른다
+      gap = o.spanMode === "gap" && o.gapPct ? Math.max(o.gapPct, 0.01) : 반올림;
+      gapRaw = 추천;
       gapSrc = o.spanMode === "gap" ? "manual"
-             : gap <= gapFloor + 1e-9 ? "floor"
+             : 추천 <= gapFloor + 1e-9 ? "floor"
              : (gapCover > gapLiq * 0.7 ? "liq" : "cover");
       span = gap * n;
       nCover = Math.round(dayRange / gap);
@@ -1188,7 +1198,7 @@ function sizing(cs, last, equity, riskPct, opt){
     const depths = [3, 5, 10, 20, n].map(d => ({ d, pct: lossAt(d), usdt: lossAt(d) * equity / 100 }));
 
     return { mae, lev, levMax, levCover, levAuto, over: lev > levAuto, stop, span, gap, n, tp,
-             nCover, nRisk, capped, dayRange, gapCover, gapLiq, gapFloor, gapSrc, depths,
+             nCover, nRisk, capped, dayRange, gapCover, gapLiq, gapFloor, gapSrc, gapRaw, depths,
              grossHr, feeHr, netHr, feeShare, netPctHr, hrsTo3, ampPerHour,
              coverPct: dayRange > 0 ? span / dayRange * 100 : 0,
              tpFloored: gap * tpMult < tpFloor, realized: tp * lev,
@@ -1374,7 +1384,8 @@ function sizingHtml(r){
         }<em>−${n0(x.usdt, 1)} USDT</em></td></tr>`).join("")}
       </table>
       ${k.gapSrc ? '<p class="hintline">간격 ' + p6(k.gap) + '% 선정 근거: ' + ({
-          cover: "24시간 레인지 " + k.dayRange.toFixed(1) + "% 를 " + k.n + "칸으로 덮는 값",
+          cover: "24시간 레인지 " + k.dayRange.toFixed(1) + "% 를 " + k.n + "칸으로 덮는 값 ("
+                 + k.gapRaw.toFixed(3) + "% → 반올림)",
           liq:   "<b>청산선에 걸려 줄였습니다.</b> 레인지대로면 " + k.gapCover.toFixed(3)
                  + "% 인데, 간격이 " + k.gapLiq.toFixed(3) + "% 를 넘으면 " + k.n
                  + "칸이 다 찰 때 청산입니다(" + k.lev + "배)",
