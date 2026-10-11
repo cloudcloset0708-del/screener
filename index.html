@@ -562,7 +562,11 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
           <button type="button" data-cat="4" class="on">원자재</button>
           <button type="button" data-cat="3" class="on">주식 토큰</button>
         </div>
-        <label class="boxchk" title="전환만이 아니라 전 종목의 지금 색을 보여줍니다"><input type="checkbox" id="hk-all"> 전 종목 색</label>
+        <div class="seg multi" id="hk-show" title="보고 싶은 상태만 켜 두십시오">
+          <button type="button" data-show="flip" class="on">전환</button>
+          <button type="button" data-show="up">상승 중</button>
+          <button type="button" data-show="down">하락 중</button>
+        </div>
         <button type="button" class="primary" id="btn-hk">전환 찾기</button>
       </div>
     </div>
@@ -2584,9 +2588,9 @@ document.getElementById("btn-manual").addEventListener("click", runManual);
    인베스팅 위젯을 붙여 봤으나 제공처가 도메인을 막으면 통째로 빈 화면이 된다.
    그래서 일정은 배포 시점에 파일에 박아 두고 여기서 직접 그린다.
    시각 문자열에 오프셋이 들어 있어 브라우저가 알아서 한국 시간으로 바꾼다. */
-const CAL_EVENTS = [{"t":"2026-10-05T10:00:00-04:00","c":"USD","n":"ISM 서비스업 PMI","f":"55.1","p":"55.4","a":"54.9","m":"미국 경제의 대부분이 서비스라 제조업보다 비중이 크다.","ab":"","r":"실제 54.9 — 예상 55.1 하회 · 발표 후 1시간 BTC ↓ -0.91% (변동폭 1.51%)"},{"t":"2026-10-07T14:00:00-04:00","c":"USD","n":"★ FOMC 의사록","f":"","p":"","a":"","m":"3주 전 회의 내용이라 새 정보는 적지만 표현 하나에 반응한다.","ab":"","r":""},{"t":"2026-10-08T04:30:00-04:00","c":"USD","n":"FOMC 위원 Waller 연설","f":"","p":"","a":"","m":"연준 인사 발언. 금리 경로를 시사하면 짧게 움직인다.","ab":"","r":""},{"t":"2026-10-08T08:30:00-04:00","c":"USD","n":"신규 실업수당 청구","f":"200K","p":"197K","a":"","m":"주간 고용 지표. 20만 초반대는 견조한 수준이라 큰 반응은 드물다.","ab":"","r":""},{"t":"2026-10-09T10:00:00-04:00","c":"USD","n":"미시간대 소비자심리 (잠정)","f":"47.5","p":"47.8","a":"","m":"소비 심리 + 기대 인플레.","ab":"","r":""},{"t":"2026-10-09T10:00:00-04:00","c":"USD","n":"미시간대 기대 인플레 (잠정)","f":"","p":"4.6%","a":"","m":"연준이 참고하는 심리 지표.","ab":"","r":""}];
-const CAL_BUILT = "2026-10-07 09:39";
-const CAL_WEEK = ["2026-10-05T10:00:00-04:00", "2026-10-09T10:00:00-04:00"];
+const CAL_EVENTS = [{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"★ 근원 소비자물가 (전월비)","f":"0.2%","p":"0.3%","a":"","m":"변동 큰 항목을 뺀 물가. 연준이 실제로 보는 쪽이라 헤드라인보다 중요하다.","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"Core CPI y/y","f":"2.5%","p":"2.4%","a":"","m":"","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"★ 소비자물가 (전월비)","f":"0.6%","p":"0.4%","a":"","m":"물가 지표 중 가장 크게 움직인다.","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"CPI y/y","f":"3.6%","p":"3.4%","a":"","m":"","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"근원 생산자물가 (전월비)","f":"0.3%","p":"0.2%","a":"","m":"소비자물가의 선행 지표.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"근원 소매판매 (전월비)","f":"0.5%","p":"1.4%","a":"","m":"자동차를 뺀 소비. 예상보다 강하면 긴축 유지 명분이 되어 위험자산에 부담.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"생산자물가 (전월비)","f":"0.5%","p":"0.4%","a":"","m":"소비자물가의 선행 지표.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"소매판매 (전월비)","f":"0.3%","p":"1.2%","a":"","m":"소비 회복 여부.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"필라델피아 연준 제조업지수","f":"26.5","p":"37.8","a":"","m":"지역 제조업 체감. 변동이 크다.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"신규 실업수당 청구","f":"195K","p":"197K","a":"","m":"주간 고용 지표. 20만 초반대는 견조한 수준이라 큰 반응은 드물다.","ab":"","r":""},{"t":"2026-10-15T23:30:00-04:00","c":"USD","n":"Fed Chairman Warsh Speaks","f":"","p":"","a":"","m":"","ab":"","r":""}];
+const CAL_BUILT = "2026-10-12 08:19";
+const CAL_WEEK = ["2026-10-14T08:30:00-04:00", "2026-10-15T23:30:00-04:00"];
 const CAL_DOW = ["일","월","화","수","목","금","토"];
 
 function calLeft(ms){
@@ -2829,7 +2833,9 @@ async function runHeikinScan(){
   }
   const minTurn = (parseFloat(document.getElementById("hk-turn").value) || 0) * 1e6;
   const cats = [...document.querySelectorAll("#hk-cat button.on")].map(b => b.dataset.cat);
-  const showAll = document.getElementById("hk-all").checked;
+  // **찾는 걸 바로 보여 준다.** 전부 늘어놓으면 정작 필요한 종목을
+  //  찾는 데 오래 걸린다 (2026-10-12 현수).
+  const shows = [...document.querySelectorAll("#hk-show button.on")].map(b => b.dataset.show);
 
   const targets = INSTRUMENTS.filter(i => {
     if (!cats.includes(i.cat)) return false;
@@ -2875,7 +2881,7 @@ async function runHeikinScan(){
 
   hkRunning = false;
   prog.hidden = true; btn.disabled = false; btn.textContent = "전환 찾기";
-  renderHeikin(rows, showAll, targets.length);
+  renderHeikin(rows, shows, targets.length);
 }
 
 const HK_GROUPS = [
@@ -2884,7 +2890,7 @@ const HK_GROUPS = [
   { cat:"3", name:"주식 토큰" },
 ];
 
-function renderHeikin(rows, showAll, asked){
+function renderHeikin(rows, shows, asked){
   const out = document.getElementById("hk-out");
   if (!rows.length){ out.innerHTML = '<div class="boxnote">받아온 종목이 없습니다.</div>'; return; }
   rows.sort((a, b) => b.turnover - a.turnover);
@@ -2901,10 +2907,16 @@ function renderHeikin(rows, showAll, asked){
       ${rows.length}종목 확인 · 초록 ${green} · 빨강 ${rows.length - green} ·
       <b>전환 ${flips.length}</b></p>`;
 
-  const list = showAll ? rows : flips;
+  const 상태 = r => r.flip ? "flip" : (r.up ? "up" : "down");
+  const list = rows.filter(r => shows.includes(상태(r)));
+  const 이름 = { flip:"전환", up:"상승 중", down:"하락 중" };
+  const 고름 = `<p class="boxtabnote">보는 중 — ${shows.map(x => `<b>${이름[x]}</b>`).join(" · ")}
+      (전환 ${flips.length} · 상승 ${rows.filter(r=>!r.flip&&r.up).length} ·
+       하락 ${rows.filter(r=>!r.up).length})</p>`;
   if (!list.length){
-    out.innerHTML = head + `<div class="boxnote">이번 주 전환된 종목이 없습니다.
-      빨강 ${rows.length - green}종목은 다음 주에 다시 봅니다.</div>`;
+    out.innerHTML = head + 고름 + `<div class="boxnote">고른 상태에 해당하는 종목이 없습니다.
+      ${shows.includes("flip") && !flips.length ? "이번 주 전환된 종목이 없습니다 — 빨강 "
+        + rows.filter(r=>!r.up).length + "종목은 다음 주에 다시 봅니다." : "위에서 다른 상태를 켜 보십시오."}</div>`;
     return;
   }
 
@@ -2924,7 +2936,7 @@ function renderHeikin(rows, showAll, asked){
         <td class="num dim">${boxMil(r.turnover)}</td>
       </tr>`).join("");
 
-  let html = head;
+  let html = head + 고름;
   for (const g of HK_GROUPS){
     const mine = list.filter(r => r.cat === g.cat);
     if (!mine.length) continue;
@@ -2938,6 +2950,11 @@ function renderHeikin(rows, showAll, asked){
   out.innerHTML = html;
 }
 
+document.getElementById("hk-show").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-show]"); if (!b) return;
+  b.classList.toggle("on");
+  if (![...document.querySelectorAll("#hk-show button.on")].length) b.classList.add("on");
+});
 document.getElementById("hk-cat").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-cat]"); if (!b) return;
   b.classList.toggle("on");
