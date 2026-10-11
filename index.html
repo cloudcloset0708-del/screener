@@ -88,6 +88,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .stat dt{margin:0;font-size:11px;color:var(--ink-3)}
 .stat dd{margin:8px 0 0;font-family:"JetBrains Mono",monospace;font-size:23px;font-weight:600;letter-spacing:-.03em}
 
+.boxgrp{margin:22px 0 8px;font-size:14px;font-weight:700;color:var(--ink)}
+.boxgrp .dim{font-weight:400;font-size:12px}
 /* ── table ──────────────────────────────────────────────── */
 .wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--edge);border-radius:var(--r-lg)}
 table{border-collapse:separate;border-spacing:0;width:100%;font-size:13.5px;min-width:1080px}
@@ -545,6 +547,27 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
     </div>
     <div id="box-prog" class="boxprog" hidden><div class="boxbar"><i id="box-fill"></i></div><span id="box-msg">준비 중</span></div>
     <div id="box-out"></div>
+  </section>
+
+  <section id="hk-sec" style="margin-top:30px">
+    <div class="sec-head">
+      <div><h2>주봉 하이킨아시 전환</h2>
+        <p>전 종목의 <b>주봉 하이킨아시</b> 색을 보고, <b>지난주 빨강 → 이번주 초록</b>으로
+           바뀐 종목만 골라냅니다. 바로 사는 자리가 아니라 <b>후보</b>입니다 —
+           손절가를 먼저 걸고 들어갑니다.</p></div>
+      <div class="boxctl">
+        <label class="boxfield">거래대금 <input id="hk-turn" type="number" step="0.5" value="1"> M 이상</label>
+        <div class="seg multi" id="hk-cat" title="OKX 무기한의 종류">
+          <button type="button" data-cat="1" class="on">코인</button>
+          <button type="button" data-cat="4" class="on">원자재</button>
+          <button type="button" data-cat="3" class="on">주식 토큰</button>
+        </div>
+        <label class="boxchk" title="전환만이 아니라 전 종목의 지금 색을 보여줍니다"><input type="checkbox" id="hk-all"> 전 종목 색</label>
+        <button type="button" class="primary" id="btn-hk">전환 찾기</button>
+      </div>
+    </div>
+    <div id="hk-prog" class="boxprog" hidden><div class="boxbar"><i id="hk-fill"></i></div><span id="hk-msg">준비 중</span></div>
+    <div id="hk-out"></div>
   </section>
 
   <section id="manual-sec" style="margin-top:30px">
@@ -2772,6 +2795,156 @@ document.addEventListener("visibilitychange", () => {
 });
 
 fullScan(false);
+
+/* ── 주봉 하이킨아시 전환 ─────────────────────────────────────────────
+   인더그레이 하이킨아시 2편의 그물을 그대로 옮긴 것.
+     빨강(음봉)인 종목에 '초록 되면 알려 줘'를 걸어 두고 → 울리면 후보
+
+   ★ 봉은 **1Wutc** 다. OKX 의 1W 는 월요일 01:00 KST 에 끊기고
+     1Wutc 는 **월요일 09:00 KST** 에 끊긴다. 강의가 말한 마감이 후자다.
+   ★ 봉의 ts 는 **시작** 시각이다. 마감은 +7일.
+   ★ 확정봉만 본다 — 진행 중인 주의 색은 월요일에 14.8% 가 뒤집힌다. */
+let hkRunning = false;
+const HK_STOP_W = 8;     // 손절 자리 = 직전 8주 저가 (강의: "직전 저점")
+const HK_HIGH_W = 52;    // 전고점 = 직전 52주 고가
+
+function heikin(cs){
+  const out = [];
+  for (const c of cs){
+    const hc = (c.o + c.h + c.l + c.c) / 4;
+    const prev = out[out.length - 1];
+    const ho = prev ? (prev.o + prev.c) / 2 : (c.o + c.c) / 2;
+    out.push({ o: ho, c: hc });
+  }
+  return out;
+}
+const hkUp = h => h.c > h.o;
+
+async function runHeikinScan(){
+  if (hkRunning) return;
+  const out = document.getElementById("hk-out");
+  if (!INSTRUMENTS.length || !Object.keys(TICKERS).length){
+    out.innerHTML = '<div class="err">먼저 스캔이 끝나야 합니다. 상단 <b>다시 스캔</b>을 눌러 주세요.</div>';
+    return;
+  }
+  const minTurn = (parseFloat(document.getElementById("hk-turn").value) || 0) * 1e6;
+  const cats = [...document.querySelectorAll("#hk-cat button.on")].map(b => b.dataset.cat);
+  const showAll = document.getElementById("hk-all").checked;
+
+  const targets = INSTRUMENTS.filter(i => {
+    if (!cats.includes(i.cat)) return false;
+    const t = TICKERS[i.instId];
+    return t && (+t.volCcy24h || 0) * (+t.last || 0) >= minTurn;
+  });
+
+  hkRunning = true;
+  const prog = document.getElementById("hk-prog");
+  const fill = document.getElementById("hk-fill");
+  const msg  = document.getElementById("hk-msg");
+  prog.hidden = false; out.innerHTML = "";
+  const btn = document.getElementById("btn-hk");
+  btn.disabled = true; btn.textContent = "찾는 중";
+
+  const rows = [];
+  await pool(targets, 8, async (inst) => {
+    const raw = await api(`/api/v5/market/candles?instId=${inst.instId}&bar=1Wutc&limit=120`);
+    const cs = parseCandles(raw);            // 확정봉만
+    if (cs.length < 12) return;
+    const ha = heikin(cs);
+    const now = ha[ha.length - 1], prev = ha[ha.length - 2];
+    let red = 0;
+    for (let i = ha.length - 2; i >= 0 && !hkUp(ha[i]); i--) red++;
+    const last = cs[cs.length - 1];
+    const stop = Math.min(...cs.slice(-(HK_STOP_W + 1), -1).map(c => c.l));
+    const high = Math.max(...cs.slice(-(HK_HIGH_W + 1), -1).map(c => c.h));
+    const t = TICKERS[inst.instId] || {};
+    rows.push({
+      instId: inst.instId, sym: inst.instId.replace("-USDT-SWAP", ""),
+      cat: inst.cat, ts: last.ts,
+      up: hkUp(now), flip: !hkUp(prev) && hkUp(now),
+      last: last.c, wk: last.o ? (last.c / last.o - 1) * 100 : 0,
+      turnover: (+t.volCcy24h || 0) * (+t.last || 0),
+      red, stop, stopPct: (stop / last.c - 1) * 100,
+      high, highPct: (high / last.c - 1) * 100,
+    });
+  }, (done) => {
+    const pc = Math.round(done / targets.length * 100);
+    fill.style.width = pc + "%";
+    msg.textContent = `${done} / ${targets.length} 종목`;
+  });
+
+  hkRunning = false;
+  prog.hidden = true; btn.disabled = false; btn.textContent = "전환 찾기";
+  renderHeikin(rows, showAll, targets.length);
+}
+
+const HK_GROUPS = [
+  { cat:"1", name:"코인" },
+  { cat:"4", name:"원자재" },
+  { cat:"3", name:"주식 토큰" },
+];
+
+function renderHeikin(rows, showAll, asked){
+  const out = document.getElementById("hk-out");
+  if (!rows.length){ out.innerHTML = '<div class="boxnote">받아온 종목이 없습니다.</div>'; return; }
+  rows.sort((a, b) => b.turnover - a.turnover);
+
+  // ts 는 봉의 시작 시각 — 마감은 거기서 7일 뒤다
+  const start = new Date(Math.max(...rows.map(r => r.ts)));
+  const close = new Date(start.getTime() + 7 * 864e5);
+  const d = (x) => x.toLocaleDateString("ko-KR", { month:"2-digit", day:"2-digit" });
+
+  const flips = rows.filter(r => r.flip);
+  const green = rows.filter(r => r.up).length;
+  const head = `<p class="boxtabnote">
+      <b>${d(start)} ~ ${d(close)} 주</b> (마감 ${close.toLocaleDateString("ko-KR")} 09:00 KST) ·
+      ${rows.length}종목 확인 · 초록 ${green} · 빨강 ${rows.length - green} ·
+      <b>전환 ${flips.length}</b></p>`;
+
+  const list = showAll ? rows : flips;
+  if (!list.length){
+    out.innerHTML = head + `<div class="boxnote">이번 주 전환된 종목이 없습니다.
+      빨강 ${rows.length - green}종목은 다음 주에 다시 봅니다.</div>`;
+    return;
+  }
+
+  const th = `<th>종목</th><th>지금</th><th>종가</th><th>주간</th>
+     <th>빨강</th><th>손절가</th><th>손절폭</th><th>전고점</th><th>전고까지</th><th>거래대금</th>`;
+  const body = (ls) => ls.map(r => `
+      <tr class="${r.flip ? "ok" : "no"}">
+        <td><b>${r.sym}</b>${catTag(r)}</td>
+        <td class="${r.up ? "pos" : "neg"}">${r.flip ? "전환" : (r.up ? "초록" : "빨강")}</td>
+        <td class="num">${fmtPrice(r.last)}</td>
+        <td class="num ${r.wk >= 0 ? "pos" : "neg"}">${r.wk >= 0 ? "+" : ""}${r.wk.toFixed(1)}%</td>
+        <td class="num dim">${r.red}주</td>
+        <td class="num"><b>${fmtPrice(r.stop)}</b></td>
+        <td class="num ${r.stopPct > -20 ? "pos" : "neg"}">${r.stopPct.toFixed(1)}%</td>
+        <td class="num dim">${fmtPrice(r.high)}</td>
+        <td class="num">${r.highPct >= 0 ? "+" : ""}${r.highPct.toFixed(0)}%</td>
+        <td class="num dim">${boxMil(r.turnover)}</td>
+      </tr>`).join("");
+
+  let html = head;
+  for (const g of HK_GROUPS){
+    const mine = list.filter(r => r.cat === g.cat);
+    if (!mine.length) continue;
+    html += `<h3 class="boxgrp">${g.name} <span class="dim">${mine.length}개</span></h3>
+      <div class="wrap"><table><thead><tr>${th}</tr></thead><tbody>${body(mine)}</tbody></table></div>`;
+  }
+  html += `<p class="boxtabnote"><b>손절폭</b>은 직전 8주 저가가 지금 값에서 얼마나 아래인지입니다.
+     실측 중앙값이 -24.7% 라 멀면 그만큼 <b>적게 사야</b> 같은 금액을 잃습니다.
+     <b>전고까지</b>는 전고점(직전 52주 고가)까지 남은 거리 —
+     강의는 이 선을 넘기 전에는 빨강이 나와도 팔지 않습니다.</p>`;
+  out.innerHTML = html;
+}
+
+document.getElementById("hk-cat").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-cat]"); if (!b) return;
+  b.classList.toggle("on");
+  if (![...document.querySelectorAll("#hk-cat button.on")].length) b.classList.add("on");
+});
+document.getElementById("btn-hk").addEventListener("click", runHeikinScan);
+
 </script>
 </body>
 </html>
