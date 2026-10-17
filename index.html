@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>이데아랩 종목 스크리너</title>
+<title>AF 종목 스크리너</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
@@ -385,7 +385,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
 <div class="shell">
 
   <header class="top">
-    <div class="brand"><span class="dot"></span><b>이데아랩 스크리너</b><span>OKX USDT PERP</span></div>
+    <div class="brand"><span class="dot"></span><b>AF 스크리너</b><span>OKX USDT PERP</span></div>
     <div class="top-right">
       <div class="chip"><span class="live-dot off" id="live-dot"></span><span id="live-label">대기</span><b class="num" id="live-ts">—</b></div>
       <div class="chip">파동<b class="num" id="wave-ts">—</b></div>
@@ -472,13 +472,15 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
         <th data-sort="chg">24h</th>
         <th data-sort="range">전일 변동성</th>
         <th data-sort="mid">20일선 대비</th>
+        <th data-sort="longma" title="일봉 140선(= 주봉 20선) 위면 목표를 길게, 아래면 1대1에서 끊습니다">긴선 140</th>
+        <th data-sort="h4" title="4시간 20이평 위면 길게 들고 갈 자리입니다. 승률이 아니라 가는 거리가 달라집니다">긴흐름 4H</th>
         <th data-sort="turnover">24h 거래대금</th>
         <th data-sort="move">1년 최대등락</th>
         <th data-sort="years">차트</th>
         <th data-sort="swings">되돌림/h</th>
         <th data-sort="fund">펀딩/일</th>
       </tr></thead>
-      <tbody id="tbody"><tr><td colspan="14" class="empty">스캔을 준비하는 중…</td></tr></tbody>
+      <tbody id="tbody"><tr><td colspan="16" class="empty">스캔을 준비하는 중…</td></tr></tbody>
     </table>
   </div>
 
@@ -549,30 +551,12 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
     <div id="box-out"></div>
   </section>
 
-  <section id="hk-sec" style="margin-top:30px">
-    <div class="sec-head">
-      <div><h2>주봉 하이킨아시 전환</h2>
-        <p>전 종목의 <b>주봉 하이킨아시</b> 색을 보고, <b>지난주 빨강 → 이번주 초록</b>으로
-           바뀐 종목만 골라냅니다. 바로 사는 자리가 아니라 <b>후보</b>입니다 —
-           손절가를 먼저 걸고 들어갑니다.</p></div>
-      <div class="boxctl">
-        <label class="boxfield">거래대금 <input id="hk-turn" type="number" step="0.5" value="1"> M 이상</label>
-        <div class="seg multi" id="hk-cat" title="OKX 무기한의 종류">
-          <button type="button" data-cat="1" class="on">코인</button>
-          <button type="button" data-cat="4" class="on">원자재</button>
-          <button type="button" data-cat="3" class="on">주식 토큰</button>
-        </div>
-        <div class="seg multi" id="hk-show" title="보고 싶은 상태만 켜 두십시오">
-          <button type="button" data-show="flip" class="on">전환</button>
-          <button type="button" data-show="up">상승 중</button>
-          <button type="button" data-show="down">하락 중</button>
-        </div>
-        <button type="button" class="primary" id="btn-hk">전환 찾기</button>
-      </div>
-    </div>
-    <div id="hk-prog" class="boxprog" hidden><div class="boxbar"><i id="hk-fill"></i></div><span id="hk-msg">준비 중</span></div>
-    <div id="hk-out"></div>
-  </section>
+
+  <p class="boxtabnote" style="margin:26px 0">
+    <b>하이킨아시 전환</b>과 <b>20이평 괴리율</b>은
+    <a href="/ingray/">인더그레이 지표</a> 화면으로 옮겼습니다 —
+    여기서 스캔이 끝나기를 기다리지 않아도 바로 열립니다.
+  </p>
 
   <section id="manual-sec" style="margin-top:30px">
     <div class="sec-head">
@@ -625,7 +609,7 @@ body.chartfull #charts-sec .chartgrid{flex:1;margin-top:8px;min-height:0}
 <script>
 "use strict";
 /* ══════════════════════════════════════════════════════════════════
-   이데아랩 종목 스크리너 — 브라우저에서 OKX 공개 API를 직접 호출한다.
+   AF 종목 스크리너 — 브라우저에서 OKX 공개 API를 직접 호출한다.
    서버도, API 키도 필요 없다. 시세 조회는 공개 엔드포인트다.
    ══════════════════════════════════════════════════════════════════ */
 
@@ -767,10 +751,14 @@ function maxDrawdown(cs){
 
 /* 한 종목의 정적 지표. 하루 한 번만 계산하면 되는 값들. */
 async function scanSymbol(instId){
-  const [d, w, m] = await Promise.all([
+  // 4시간봉을 하나 더 받는다 — 차트 세팅 강의의 '긴 흐름'.
+  // 요청이 종목당 하나 느는 정도이고, 일봉은 이미 300개를 받으므로
+  // MA(140)('긴 이동평균선')은 공짜로 나온다.
+  const [d, w, m, h4] = await Promise.all([
     api(`/api/v5/market/candles?instId=${instId}&bar=1D&limit=300`).then(parseCandles),
     api(`/api/v5/market/candles?instId=${instId}&bar=1W&limit=300`).then(parseCandles),
     api(`/api/v5/market/candles?instId=${instId}&bar=1M&limit=300`).then(parseCandles),  // 대문자 M = 월봉
+    api(`/api/v5/market/candles?instId=${instId}&bar=4H&limit=60`).then(parseCandles),
   ]);
   if (!d.length) return null;
 
@@ -814,6 +802,12 @@ async function scanSymbol(instId){
     dropMdd: Math.max(maxDrawdown(w), maxDrawdown(m)),   // 조건3 (전 구간)
     ath, bbMid: mid, bbUpper: mid != null ? mid + 2 * sd : null,
     slope, dailyClose: closes[closes.length - 1],
+    // 긴 이동평균선 = 일봉 140선. 주봉 20선과 같은 선이다
+    // (bybit 60종목 9,028주 비교에서 위/아래 판정 99.0% 일치).
+    ma140: closes.length >= 140 ? mean(closes.slice(-140)) : null,
+    // 긴 흐름 = 4시간 20이평. 목표가·보유기간을 가르는 데만 쓴다
+    h4Mid: h4.length >= 20 ? mean(h4.slice(-20).map(c => c.c)) : null,
+    h4Close: h4.length ? h4[h4.length - 1].c : null,
   };
 }
 
@@ -871,6 +865,9 @@ function judge(instId, mx, tk){
     swingsPerHour: w.swingsPerHour, directionality: w.directionality, pathPerHour: w.pathPerHour,
     bias: w.bias || { score:0, label:"—", reason:"" }, bbPos: w.bbPos ?? 0.5,
     fund: FUNDMAP[instId] || null,
+    // 참고 열 둘 — 점수에는 넣지 않는다 (승률을 올린다는 근거가 없다)
+    longMa: mx.ma140 ? (last - mx.ma140) / mx.ma140 : null,
+    h4Up: (mx.h4Mid != null && mx.h4Close != null) ? mx.h4Close > mx.h4Mid : null,
   };
 }
 
@@ -1350,6 +1347,7 @@ function compute(){
 function sortRows(rows){
   const key = SORT.key, dir = SORT.dir;
   const val = r => ({ sym:r.sym, score:r.score, last:r.last, chg:r.chg, range:r.range,
+                      longma: r.longMa ?? -9, h4: r.h4Up === null ? -1 : (r.h4Up ? 1 : 0),
                       mid:r.midPct, turnover:r.turnover, drop:-r.drop, move:-r.maxMove1y, years:r.years,
                       swings:r.swingsPerHour, bias:r.bias.score, dow:({상승추세:2,수축:1,판정불가:0,하락추세:-1,확장:-2}[(DOWS[r.instId]||{}).trend] ?? 0),
                       fund: r.fund ? r.fund.daily : 0, rank:r.score }[key]);
@@ -1634,7 +1632,7 @@ function render(){
 
   const tb = document.getElementById("tbody");
   if (!passed.length){
-    tb.innerHTML = `<tr><td colspan="14" class="empty">${
+    tb.innerHTML = `<tr><td colspan="16" class="empty">${
       Object.keys(METRICS).length ? "조건을 통과한 종목이 없습니다. 위 조건 값을 완화하거나, 아래에서 종목을 직접 조회해 보세요."
                                   : "스캔을 준비하는 중…"}</td></tr>`;
     renderManual();
@@ -1660,6 +1658,10 @@ function render(){
       <td class="num ${cls(r.chg)}">${pct(r.chg)}</td>
       <td class="num">${(r.range * 100).toFixed(1)}%</td>
       <td class="num ${cls(r.midPct)}">${pct(r.midPct)}</td>
+      <td class="num ${r.longMa == null ? "" : (r.longMa > 0 ? "pos" : "neg")}">${
+        r.longMa == null ? "—" : (r.longMa > 0 ? "위 " : "아래 ") + pct(r.longMa)}</td>
+      <td class="${r.h4Up == null ? "" : (r.h4Up ? "pos" : "neg")}">${
+        r.h4Up == null ? "—" : (r.h4Up ? "길게" : "짧게")}</td>
       <td class="num">${(r.turnover / 1e6).toFixed(1)}M</td>
       <td class="num">${(r.maxMove1y * 100).toFixed(1)}%</td>
       <td class="num">${r.years.toFixed(1)}y</td>
@@ -1668,7 +1670,7 @@ function render(){
         r.fund ? `${(r.fund.rate*100).toFixed(4)}% / ${r.fund.hrs}시간 · 한계 ${(r.fund.capPct*100).toFixed(0)}%` : ""}">${
         r.fund ? (r.fund.daily*100).toFixed(2) + "%" : "—"}</td>
     </tr>`);
-    if (isOpen) html.push(`<tr class="detail"><td colspan="14">${detailHtml(r)}</td></tr>`);
+    if (isOpen) html.push(`<tr class="detail"><td colspan="16">${detailHtml(r)}</td></tr>`);
   });
   tb.innerHTML = html.join("");
   renderManual();
@@ -2588,9 +2590,9 @@ document.getElementById("btn-manual").addEventListener("click", runManual);
    인베스팅 위젯을 붙여 봤으나 제공처가 도메인을 막으면 통째로 빈 화면이 된다.
    그래서 일정은 배포 시점에 파일에 박아 두고 여기서 직접 그린다.
    시각 문자열에 오프셋이 들어 있어 브라우저가 알아서 한국 시간으로 바꾼다. */
-const CAL_EVENTS = [{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"★ 근원 소비자물가 (전월비)","f":"0.2%","p":"0.3%","a":"","m":"변동 큰 항목을 뺀 물가. 연준이 실제로 보는 쪽이라 헤드라인보다 중요하다.","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"Core CPI y/y","f":"2.5%","p":"2.4%","a":"","m":"","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"★ 소비자물가 (전월비)","f":"0.6%","p":"0.4%","a":"","m":"물가 지표 중 가장 크게 움직인다.","ab":"","r":""},{"t":"2026-10-14T08:30:00-04:00","c":"USD","n":"CPI y/y","f":"3.6%","p":"3.4%","a":"","m":"","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"근원 생산자물가 (전월비)","f":"0.3%","p":"0.2%","a":"","m":"소비자물가의 선행 지표.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"근원 소매판매 (전월비)","f":"0.5%","p":"1.4%","a":"","m":"자동차를 뺀 소비. 예상보다 강하면 긴축 유지 명분이 되어 위험자산에 부담.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"생산자물가 (전월비)","f":"0.5%","p":"0.4%","a":"","m":"소비자물가의 선행 지표.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"소매판매 (전월비)","f":"0.3%","p":"1.2%","a":"","m":"소비 회복 여부.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"필라델피아 연준 제조업지수","f":"26.5","p":"37.8","a":"","m":"지역 제조업 체감. 변동이 크다.","ab":"","r":""},{"t":"2026-10-15T08:30:00-04:00","c":"USD","n":"신규 실업수당 청구","f":"195K","p":"197K","a":"","m":"주간 고용 지표. 20만 초반대는 견조한 수준이라 큰 반응은 드물다.","ab":"","r":""},{"t":"2026-10-15T23:30:00-04:00","c":"USD","n":"Fed Chairman Warsh Speaks","f":"","p":"","a":"","m":"","ab":"","r":""}];
-const CAL_BUILT = "2026-10-12 08:19";
-const CAL_WEEK = ["2026-10-14T08:30:00-04:00", "2026-10-15T23:30:00-04:00"];
+const CAL_EVENTS = [];
+const CAL_BUILT = "2026-10-17 08:19";
+const CAL_WEEK = [];
 const CAL_DOW = ["일","월","화","수","목","금","토"];
 
 function calLeft(ms){
@@ -2773,7 +2775,7 @@ document.getElementById("btn-copy").addEventListener("click", async (e) => {
   const d = new Date();
   const wd = "일월화수목금토"[d.getDay()];
   const bar = "━".repeat(18);
-  const lines = ["🔎 이데아랩 종목 스크리너",
+  const lines = ["🔎 AF 종목 스크리너",
     `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} (${wd}) ${d.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"})}`,
     "", bar];
   if (!ROWS.length) lines.push("조건을 통과한 종목이 없습니다.");
@@ -2781,7 +2783,7 @@ document.getElementById("btn-copy").addEventListener("click", async (e) => {
     lines.push(`${i+1}. ${r.sym}  ${r.score.toFixed(0)}점`);
     lines.push(`   ${r.bias.label} · 변동성 ${(r.range*100).toFixed(1)}% · 되돌림 ${r.swingsPerHour.toFixed(1)}회/h`);
   });
-  lines.push(bar, "", "— IDEA Lab");
+  lines.push(bar, "", "— Alpha Flow");
   const text = lines.join("\n");
   try{ await navigator.clipboard.writeText(text); e.target.textContent = "복사했습니다"; }
   catch(err){
@@ -2808,159 +2810,7 @@ fullScan(false);
      1Wutc 는 **월요일 09:00 KST** 에 끊긴다. 강의가 말한 마감이 후자다.
    ★ 봉의 ts 는 **시작** 시각이다. 마감은 +7일.
    ★ 확정봉만 본다 — 진행 중인 주의 색은 월요일에 14.8% 가 뒤집힌다. */
-let hkRunning = false;
-const HK_STOP_W = 8;     // 손절 자리 = 직전 8주 저가 (강의: "직전 저점")
-const HK_HIGH_W = 52;    // 전고점 = 직전 52주 고가
 
-function heikin(cs){
-  const out = [];
-  for (const c of cs){
-    const hc = (c.o + c.h + c.l + c.c) / 4;
-    const prev = out[out.length - 1];
-    const ho = prev ? (prev.o + prev.c) / 2 : (c.o + c.c) / 2;
-    out.push({ o: ho, c: hc });
-  }
-  return out;
-}
-const hkUp = h => h.c > h.o;
-
-async function runHeikinScan(){
-  if (hkRunning) return;
-  const out = document.getElementById("hk-out");
-  if (!INSTRUMENTS.length || !Object.keys(TICKERS).length){
-    out.innerHTML = '<div class="err">먼저 스캔이 끝나야 합니다. 상단 <b>다시 스캔</b>을 눌러 주세요.</div>';
-    return;
-  }
-  const minTurn = (parseFloat(document.getElementById("hk-turn").value) || 0) * 1e6;
-  const cats = [...document.querySelectorAll("#hk-cat button.on")].map(b => b.dataset.cat);
-  // **찾는 걸 바로 보여 준다.** 전부 늘어놓으면 정작 필요한 종목을
-  //  찾는 데 오래 걸린다 (2026-10-12 현수).
-  const shows = [...document.querySelectorAll("#hk-show button.on")].map(b => b.dataset.show);
-
-  const targets = INSTRUMENTS.filter(i => {
-    if (!cats.includes(i.cat)) return false;
-    const t = TICKERS[i.instId];
-    return t && (+t.volCcy24h || 0) * (+t.last || 0) >= minTurn;
-  });
-
-  hkRunning = true;
-  const prog = document.getElementById("hk-prog");
-  const fill = document.getElementById("hk-fill");
-  const msg  = document.getElementById("hk-msg");
-  prog.hidden = false; out.innerHTML = "";
-  const btn = document.getElementById("btn-hk");
-  btn.disabled = true; btn.textContent = "찾는 중";
-
-  const rows = [];
-  await pool(targets, 8, async (inst) => {
-    const raw = await api(`/api/v5/market/candles?instId=${inst.instId}&bar=1Wutc&limit=120`);
-    const cs = parseCandles(raw);            // 확정봉만
-    if (cs.length < 12) return;
-    const ha = heikin(cs);
-    const now = ha[ha.length - 1], prev = ha[ha.length - 2];
-    let red = 0;
-    for (let i = ha.length - 2; i >= 0 && !hkUp(ha[i]); i--) red++;
-    const last = cs[cs.length - 1];
-    const stop = Math.min(...cs.slice(-(HK_STOP_W + 1), -1).map(c => c.l));
-    const high = Math.max(...cs.slice(-(HK_HIGH_W + 1), -1).map(c => c.h));
-    const t = TICKERS[inst.instId] || {};
-    rows.push({
-      instId: inst.instId, sym: inst.instId.replace("-USDT-SWAP", ""),
-      cat: inst.cat, ts: last.ts,
-      up: hkUp(now), flip: !hkUp(prev) && hkUp(now),
-      last: last.c, wk: last.o ? (last.c / last.o - 1) * 100 : 0,
-      turnover: (+t.volCcy24h || 0) * (+t.last || 0),
-      red, stop, stopPct: (stop / last.c - 1) * 100,
-      high, highPct: (high / last.c - 1) * 100,
-    });
-  }, (done) => {
-    const pc = Math.round(done / targets.length * 100);
-    fill.style.width = pc + "%";
-    msg.textContent = `${done} / ${targets.length} 종목`;
-  });
-
-  hkRunning = false;
-  prog.hidden = true; btn.disabled = false; btn.textContent = "전환 찾기";
-  renderHeikin(rows, shows, targets.length);
-}
-
-const HK_GROUPS = [
-  { cat:"1", name:"코인" },
-  { cat:"4", name:"원자재" },
-  { cat:"3", name:"주식 토큰" },
-];
-
-function renderHeikin(rows, shows, asked){
-  const out = document.getElementById("hk-out");
-  if (!rows.length){ out.innerHTML = '<div class="boxnote">받아온 종목이 없습니다.</div>'; return; }
-  rows.sort((a, b) => b.turnover - a.turnover);
-
-  // ts 는 봉의 시작 시각 — 마감은 거기서 7일 뒤다
-  const start = new Date(Math.max(...rows.map(r => r.ts)));
-  const close = new Date(start.getTime() + 7 * 864e5);
-  const d = (x) => x.toLocaleDateString("ko-KR", { month:"2-digit", day:"2-digit" });
-
-  const flips = rows.filter(r => r.flip);
-  const green = rows.filter(r => r.up).length;
-  const head = `<p class="boxtabnote">
-      <b>${d(start)} ~ ${d(close)} 주</b> (마감 ${close.toLocaleDateString("ko-KR")} 09:00 KST) ·
-      ${rows.length}종목 확인 · 초록 ${green} · 빨강 ${rows.length - green} ·
-      <b>전환 ${flips.length}</b></p>`;
-
-  const 상태 = r => r.flip ? "flip" : (r.up ? "up" : "down");
-  const list = rows.filter(r => shows.includes(상태(r)));
-  const 이름 = { flip:"전환", up:"상승 중", down:"하락 중" };
-  const 고름 = `<p class="boxtabnote">보는 중 — ${shows.map(x => `<b>${이름[x]}</b>`).join(" · ")}
-      (전환 ${flips.length} · 상승 ${rows.filter(r=>!r.flip&&r.up).length} ·
-       하락 ${rows.filter(r=>!r.up).length})</p>`;
-  if (!list.length){
-    out.innerHTML = head + 고름 + `<div class="boxnote">고른 상태에 해당하는 종목이 없습니다.
-      ${shows.includes("flip") && !flips.length ? "이번 주 전환된 종목이 없습니다 — 빨강 "
-        + rows.filter(r=>!r.up).length + "종목은 다음 주에 다시 봅니다." : "위에서 다른 상태를 켜 보십시오."}</div>`;
-    return;
-  }
-
-  const th = `<th>종목</th><th>지금</th><th>종가</th><th>주간</th>
-     <th>빨강</th><th>손절가</th><th>손절폭</th><th>전고점</th><th>전고까지</th><th>거래대금</th>`;
-  const body = (ls) => ls.map(r => `
-      <tr class="${r.flip ? "ok" : "no"}">
-        <td><b>${r.sym}</b>${catTag(r)}</td>
-        <td class="${r.up ? "pos" : "neg"}">${r.flip ? "전환" : (r.up ? "초록" : "빨강")}</td>
-        <td class="num">${fmtPrice(r.last)}</td>
-        <td class="num ${r.wk >= 0 ? "pos" : "neg"}">${r.wk >= 0 ? "+" : ""}${r.wk.toFixed(1)}%</td>
-        <td class="num dim">${r.red}주</td>
-        <td class="num"><b>${fmtPrice(r.stop)}</b></td>
-        <td class="num ${r.stopPct > -20 ? "pos" : "neg"}">${r.stopPct.toFixed(1)}%</td>
-        <td class="num dim">${fmtPrice(r.high)}</td>
-        <td class="num">${r.highPct >= 0 ? "+" : ""}${r.highPct.toFixed(0)}%</td>
-        <td class="num dim">${boxMil(r.turnover)}</td>
-      </tr>`).join("");
-
-  let html = head + 고름;
-  for (const g of HK_GROUPS){
-    const mine = list.filter(r => r.cat === g.cat);
-    if (!mine.length) continue;
-    html += `<h3 class="boxgrp">${g.name} <span class="dim">${mine.length}개</span></h3>
-      <div class="wrap"><table><thead><tr>${th}</tr></thead><tbody>${body(mine)}</tbody></table></div>`;
-  }
-  html += `<p class="boxtabnote"><b>손절폭</b>은 직전 8주 저가가 지금 값에서 얼마나 아래인지입니다.
-     실측 중앙값이 -24.7% 라 멀면 그만큼 <b>적게 사야</b> 같은 금액을 잃습니다.
-     <b>전고까지</b>는 전고점(직전 52주 고가)까지 남은 거리 —
-     강의는 이 선을 넘기 전에는 빨강이 나와도 팔지 않습니다.</p>`;
-  out.innerHTML = html;
-}
-
-document.getElementById("hk-show").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-show]"); if (!b) return;
-  b.classList.toggle("on");
-  if (![...document.querySelectorAll("#hk-show button.on")].length) b.classList.add("on");
-});
-document.getElementById("hk-cat").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-cat]"); if (!b) return;
-  b.classList.toggle("on");
-  if (![...document.querySelectorAll("#hk-cat button.on")].length) b.classList.add("on");
-});
-document.getElementById("btn-hk").addEventListener("click", runHeikinScan);
 
 </script>
 </body>
